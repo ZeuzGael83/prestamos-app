@@ -64,7 +64,7 @@ export default function Page() {
             }}
           >
             <a
-              href="#modulos"
+              href="/login"
               style={{
                 background: "white",
                 color: "#111827",
@@ -74,7 +74,7 @@ export default function Page() {
                 fontWeight: 700,
               }}
             >
-              Ver módulos
+              Entrar al sistema
             </a>
 
             <a
@@ -130,79 +130,11 @@ export default function Page() {
         </div>
       </section>
 
-      <section id="modulos" style={{ padding: "24px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <h2 style={{ fontSize: 30, marginBottom: 10 }}>
-            Módulos principales
-          </h2>
-          <p style={{ color: "#6b7280", fontSize: 16, lineHeight: 1.6 }}>
-            La plataforma está pensada para operar el ciclo completo del
-            préstamo, desde la colocación hasta la recuperación.
-          </p>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: 18,
-              marginTop: 24,
-            }}
-          >
-            {[
-              [
-                "Clientes",
-                "Alta, edición, historial de préstamos, referencias y seguimiento.",
-              ],
-              [
-                "Préstamos",
-                "Creación de préstamos con interés, periodicidad y generación automática de cuotas.",
-              ],
-              [
-                "Pagos",
-                "Registro de pagos completos o parciales y actualización de saldos.",
-              ],
-              [
-                "Cartera",
-                "Control de capital disponible, entradas, salidas y trazabilidad.",
-              ],
-              [
-                "Dashboard",
-                "Vista ejecutiva con métricas clave para control operativo y financiero.",
-              ],
-              [
-                "Reportes",
-                "Consulta de cobranza, vencidos, ganancias y movimientos por periodo.",
-              ],
-            ].map(([title, text]) => (
-              <div
-                key={title}
-                style={{
-                  background: "white",
-                  borderRadius: 18,
-                  padding: 22,
-                  border: "1px solid #e5e7eb",
-                }}
-              >
-                <h3 style={{ margin: "0 0 10px 0", fontSize: 20 }}>{title}</h3>
-                <p style={{ margin: 0, color: "#6b7280", lineHeight: 1.6 }}>
-                  {text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="kpis" style={{ padding: "24px" }}>
+      <section id="kpis" style={{ padding: "24px 24px 48px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <h2 style={{ fontSize: 30, marginBottom: 10 }}>
             KPIs que visualizará el sistema
           </h2>
-          <p style={{ color: "#6b7280", fontSize: 16, lineHeight: 1.6 }}>
-            Estos indicadores permiten tomar decisiones operativas y gerenciales
-            con base en datos reales.
-          </p>
-
           <div
             style={{
               display: "grid",
@@ -220,8 +152,6 @@ export default function Page() {
               "Ganancia realizada",
               "Clientes activos",
               "Préstamos liquidados",
-              "Préstamos en mora",
-              "Porcentaje de cartera vencida",
             ].map((item) => (
               <div
                 key={item}
@@ -236,80 +166,6 @@ export default function Page() {
                 {item}
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section style={{ padding: "24px 24px 48px 24px" }}>
-        <div
-          style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            background: "#111827",
-            color: "white",
-            borderRadius: 24,
-            padding: 28,
-          }}
-        >
-          <h2 style={{ fontSize: 28, marginTop: 0 }}>
-            Base publicada correctamente
-          </h2>
-          <p
-            style={{
-              color: "rgba(255,255,255,0.86)",
-              lineHeight: 1.7,
-              fontSize: 16,
-            }}
-          >
-            Esta es la base visual publicada del proyecto. El siguiente paso es
-            conectar autenticación, base de datos y módulos operativos para
-            convertir esta portada en un sistema funcional de préstamos.
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-              marginTop: 16,
-            }}
-          >
-            <span
-              style={{
-                background: "rgba(255,255,255,0.1)",
-                padding: "10px 14px",
-                borderRadius: 999,
-              }}
-            >
-              Next.js
-            </span>
-            <span
-              style={{
-                background: "rgba(255,255,255,0.1)",
-                padding: "10px 14px",
-                borderRadius: 999,
-              }}
-            >
-              Prisma
-            </span>
-            <span
-              style={{
-                background: "rgba(255,255,255,0.1)",
-                padding: "10px 14px",
-                borderRadius: 999,
-              }}
-            >
-              KPIs
-            </span>
-            <span
-              style={{
-                background: "rgba(255,255,255,0.1)",
-                padding: "10px 14px",
-                borderRadius: 999,
-              }}
-            >
-              Dashboard
-            </span>
           </div>
         </div>
       </section>
