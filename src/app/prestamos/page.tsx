@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Cliente = {
   id: string;
@@ -13,14 +13,22 @@ type Prestamo = {
   id: string;
   clienteId: string;
   clienteNombre: string;
-  monto: number;
-  interes: number;
-  numeroPagos: number;
+
+  tipo: "gota_a_gota" | "cuotas";
+
+  capital: number;
   totalPagar: number;
-  pagoPorCuota: number;
   saldoPendiente: number;
   estado: "activo" | "liquidado";
   fecha: string;
+
+  utilidad?: number;
+  dias?: number;
+  cuotaDiaria?: number;
+
+  interes?: number;
+  numeroPagos?: number;
+  pagoPorCuota?: number;
 };
 
 export default function PrestamosPage() {
@@ -28,7 +36,12 @@ export default function PrestamosPage() {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
 
   const [clienteId, setClienteId] = useState("");
-  const [monto, setMonto] = useState("");
+  const [tipo, setTipo] = useState<"gota_a_gota" | "cuotas">("gota_a_gota");
+
+  const [capital, setCapital] = useState("");
+  const [utilidad, setUtilidad] = useState("");
+  const [dias, setDias] = useState("");
+
   const [interes, setInteres] = useState("");
   const [numeroPagos, setNumeroPagos] = useState("");
 
@@ -50,17 +63,20 @@ export default function PrestamosPage() {
     }
   }, []);
 
-  const clienteSeleccionado = useMemo(
-    () => clientes.find((c) => c.id === clienteId),
-    [clientes, clienteId]
-  );
+  const clienteSeleccionado = clientes.find((c) => c.id === clienteId);
 
-  const montoNum = Number(monto || 0);
+  const capitalNum = Number(capital || 0);
+  const utilidadNum = Number(utilidad || 0);
+  const diasNum = Number(dias || 0);
+
   const interesNum = Number(interes || 0);
   const pagosNum = Number(numeroPagos || 0);
 
-  const totalPagar = montoNum + montoNum * (interesNum / 100);
-  const pagoPorCuota = pagosNum > 0 ? totalPagar / pagosNum : 0;
+  const totalGota = capitalNum + utilidadNum;
+  const cuotaDiaria = diasNum > 0 ? totalGota / diasNum : 0;
+
+  const totalCuotas = capitalNum + capitalNum * (interesNum / 100);
+  const pagoPorCuota = pagosNum > 0 ? totalCuotas / pagosNum : 0;
 
   const guardarPrestamos = (lista: Prestamo[]) => {
     setPrestamos(lista);
@@ -73,41 +89,74 @@ export default function PrestamosPage() {
       return;
     }
 
-    if (montoNum <= 0) {
-      alert("El monto debe ser mayor a 0");
+    if (capitalNum <= 0) {
+      alert("El capital debe ser mayor a 0");
       return;
     }
 
-    if (interesNum < 0) {
-      alert("El interés no puede ser negativo");
-      return;
+    if (tipo === "gota_a_gota") {
+      if (utilidadNum < 0) {
+        alert("La utilidad no puede ser negativa");
+        return;
+      }
+
+      if (diasNum <= 0) {
+        alert("Los días deben ser mayores a 0");
+        return;
+      }
+
+      const nuevoPrestamo: Prestamo = {
+        id: Date.now().toString(),
+        clienteId,
+        clienteNombre: clienteSeleccionado?.nombre || "Cliente",
+        tipo: "gota_a_gota",
+        capital: capitalNum,
+        utilidad: utilidadNum,
+        dias: diasNum,
+        cuotaDiaria,
+        totalPagar: totalGota,
+        saldoPendiente: totalGota,
+        estado: "activo",
+        fecha: new Date().toLocaleDateString(),
+      };
+
+      guardarPrestamos([nuevoPrestamo, ...prestamos]);
+    } else {
+      if (interesNum < 0) {
+        alert("El interés no puede ser negativo");
+        return;
+      }
+
+      if (pagosNum <= 0) {
+        alert("El número de pagos debe ser mayor a 0");
+        return;
+      }
+
+      const nuevoPrestamo: Prestamo = {
+        id: Date.now().toString(),
+        clienteId,
+        clienteNombre: clienteSeleccionado?.nombre || "Cliente",
+        tipo: "cuotas",
+        capital: capitalNum,
+        interes: interesNum,
+        numeroPagos: pagosNum,
+        pagoPorCuota,
+        totalPagar: totalCuotas,
+        saldoPendiente: totalCuotas,
+        estado: "activo",
+        fecha: new Date().toLocaleDateString(),
+      };
+
+      guardarPrestamos([nuevoPrestamo, ...prestamos]);
     }
-
-    if (pagosNum <= 0) {
-      alert("El número de pagos debe ser mayor a 0");
-      return;
-    }
-
-    const nuevoPrestamo: Prestamo = {
-      id: Date.now().toString(),
-      clienteId,
-      clienteNombre: clienteSeleccionado?.nombre || "Cliente",
-      monto: montoNum,
-      interes: interesNum,
-      numeroPagos: pagosNum,
-      totalPagar,
-      pagoPorCuota,
-      saldoPendiente: totalPagar,
-      estado: "activo",
-      fecha: new Date().toLocaleDateString(),
-    };
-
-    guardarPrestamos([nuevoPrestamo, ...prestamos]);
 
     setClienteId("");
-    setMonto("");
+    setCapital("");
+    setUtilidad("");
+    setDias("");
     setInteres("");
     setNumeroPagos("");
+    setTipo("gota_a_gota");
   };
 
   const eliminarPrestamo = (id: string) => {
@@ -138,11 +187,7 @@ export default function PrestamosPage() {
         <h1 style={{ margin: 0 }}>Préstamos</h1>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button
-            onClick={() => {
-              window.location.href = "/dashboard";
-            }}
-          >
+          <button onClick={() => (window.location.href = "/dashboard")}>
             ← Volver al dashboard
           </button>
 
@@ -176,9 +221,7 @@ export default function PrestamosPage() {
         <h2 style={{ marginTop: 0 }}>Nuevo préstamo</h2>
 
         {clientes.length === 0 ? (
-          <p>
-            Primero debes registrar al menos un cliente en el módulo de clientes.
-          </p>
+          <p>Primero registra al menos un cliente.</p>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             <select
@@ -194,46 +237,96 @@ export default function PrestamosPage() {
               ))}
             </select>
 
-            <input
-              type="number"
-              placeholder="Monto del préstamo"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
+            <select
+              value={tipo}
+              onChange={(e) =>
+                setTipo(e.target.value as "gota_a_gota" | "cuotas")
+              }
               style={{ padding: 12 }}
-            />
-
-            <input
-              type="number"
-              placeholder="Interés (%)"
-              value={interes}
-              onChange={(e) => setInteres(e.target.value)}
-              style={{ padding: 12 }}
-            />
-
-            <input
-              type="number"
-              placeholder="Número de pagos"
-              value={numeroPagos}
-              onChange={(e) => setNumeroPagos(e.target.value)}
-              style={{ padding: 12 }}
-            />
-
-            <div
-              style={{
-                background: "#eff6ff",
-                border: "1px solid #bfdbfe",
-                borderRadius: 10,
-                padding: 14,
-                lineHeight: 1.8,
-              }}
             >
-              <div>
-                <strong>Total a pagar:</strong> ${totalPagar.toFixed(2)}
-              </div>
-              <div>
-                <strong>Pago por cuota:</strong> ${pagoPorCuota.toFixed(2)}
-              </div>
-            </div>
+              <option value="gota_a_gota">Gota a gota</option>
+              <option value="cuotas">Cuotas + interés</option>
+            </select>
+
+            <input
+              type="number"
+              placeholder="Capital prestado"
+              value={capital}
+              onChange={(e) => setCapital(e.target.value)}
+              style={{ padding: 12 }}
+            />
+
+            {tipo === "gota_a_gota" ? (
+              <>
+                <input
+                  type="number"
+                  placeholder="Utilidad total"
+                  value={utilidad}
+                  onChange={(e) => setUtilidad(e.target.value)}
+                  style={{ padding: 12 }}
+                />
+
+                <input
+                  type="number"
+                  placeholder="Días de cobro"
+                  value={dias}
+                  onChange={(e) => setDias(e.target.value)}
+                  style={{ padding: 12 }}
+                />
+
+                <div
+                  style={{
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 10,
+                    padding: 14,
+                    lineHeight: 1.8,
+                  }}
+                >
+                  <div>
+                    <strong>Total a cobrar:</strong> ${totalGota.toFixed(2)}
+                  </div>
+                  <div>
+                    <strong>Cuota diaria:</strong> ${cuotaDiaria.toFixed(2)}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <input
+                  type="number"
+                  placeholder="Interés (%)"
+                  value={interes}
+                  onChange={(e) => setInteres(e.target.value)}
+                  style={{ padding: 12 }}
+                />
+
+                <input
+                  type="number"
+                  placeholder="Número de pagos"
+                  value={numeroPagos}
+                  onChange={(e) => setNumeroPagos(e.target.value)}
+                  style={{ padding: 12 }}
+                />
+
+                <div
+                  style={{
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 10,
+                    padding: 14,
+                    lineHeight: 1.8,
+                  }}
+                >
+                  <div>
+                    <strong>Total a pagar:</strong> ${totalCuotas.toFixed(2)}
+                  </div>
+                  <div>
+                    <strong>Pago por cuota:</strong> ${pagoPorCuota.toFixed(2)}
+                  </div>
+                </div>
+              </>
+            )}
 
             <button
               onClick={crearPrestamo}
@@ -279,37 +372,26 @@ export default function PrestamosPage() {
                   {prestamo.clienteNombre}
                 </div>
 
-                <div style={{ marginTop: 6 }}>
-                  <strong>Monto:</strong> ${prestamo.monto.toFixed(2)}
-                </div>
+                <div><strong>Tipo:</strong> {prestamo.tipo}</div>
+                <div><strong>Capital:</strong> ${prestamo.capital.toFixed(2)}</div>
+                <div><strong>Total:</strong> ${prestamo.totalPagar.toFixed(2)}</div>
+                <div><strong>Saldo pendiente:</strong> ${prestamo.saldoPendiente.toFixed(2)}</div>
+                <div><strong>Estado:</strong> {prestamo.estado}</div>
+                <div><strong>Fecha:</strong> {prestamo.fecha}</div>
 
-                <div style={{ marginTop: 4 }}>
-                  <strong>Interés:</strong> {prestamo.interes}%
-                </div>
-
-                <div style={{ marginTop: 4 }}>
-                  <strong>Número de pagos:</strong> {prestamo.numeroPagos}
-                </div>
-
-                <div style={{ marginTop: 4 }}>
-                  <strong>Total a pagar:</strong> ${prestamo.totalPagar.toFixed(2)}
-                </div>
-
-                <div style={{ marginTop: 4 }}>
-                  <strong>Pago por cuota:</strong> ${prestamo.pagoPorCuota.toFixed(2)}
-                </div>
-
-                <div style={{ marginTop: 4 }}>
-                  <strong>Saldo pendiente:</strong> ${prestamo.saldoPendiente.toFixed(2)}
-                </div>
-
-                <div style={{ marginTop: 4 }}>
-                  <strong>Estado:</strong> {prestamo.estado}
-                </div>
-
-                <div style={{ marginTop: 4 }}>
-                  <strong>Fecha:</strong> {prestamo.fecha}
-                </div>
+                {prestamo.tipo === "gota_a_gota" ? (
+                  <>
+                    <div><strong>Utilidad:</strong> ${Number(prestamo.utilidad || 0).toFixed(2)}</div>
+                    <div><strong>Días:</strong> {prestamo.dias}</div>
+                    <div><strong>Cuota diaria:</strong> ${Number(prestamo.cuotaDiaria || 0).toFixed(2)}</div>
+                  </>
+                ) : (
+                  <>
+                    <div><strong>Interés:</strong> {prestamo.interes}%</div>
+                    <div><strong>Número de pagos:</strong> {prestamo.numeroPagos}</div>
+                    <div><strong>Pago por cuota:</strong> ${Number(prestamo.pagoPorCuota || 0).toFixed(2)}</div>
+                  </>
+                )}
 
                 <button
                   onClick={() => eliminarPrestamo(prestamo.id)}
