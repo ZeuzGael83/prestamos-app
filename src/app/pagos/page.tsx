@@ -4,21 +4,14 @@ import { useEffect, useState } from "react";
 
 type Prestamo = {
   id: string;
-  clienteId: string;
   clienteNombre: string;
-  monto: number;
-  interes: number;
-  numeroPagos: number;
   totalPagar: number;
-  pagoPorCuota: number;
   saldoPendiente?: number;
-  estado?: "activo" | "liquidado";
-  fecha: string;
+  estado?: string;
 };
 
 type Pago = {
   id: string;
-  prestamoId: string;
   clienteNombre: string;
   montoPagado: number;
   fecha: string;
@@ -39,18 +32,8 @@ export default function PagosPage() {
 
     const prestamosGuardados = localStorage.getItem("prestamos");
     if (prestamosGuardados) {
-      const lista: Prestamo[] = JSON.parse(prestamosGuardados).map((p: Prestamo) => ({
-        ...p,
-        saldoPendiente:
-          typeof p.saldoPendiente === "number" ? p.saldoPendiente : p.totalPagar,
-        estado:
-          p.estado ||
-          ((typeof p.saldoPendiente === "number" ? p.saldoPendiente : p.totalPagar) <= 0
-            ? "liquidado"
-            : "activo"),
-      }));
+      const lista = JSON.parse(prestamosGuardados);
       setPrestamos(lista);
-      localStorage.setItem("prestamos", JSON.stringify(lista));
     }
 
     const pagosGuardados = localStorage.getItem("pagos");
@@ -59,85 +42,62 @@ export default function PagosPage() {
     }
   }, []);
 
-  const guardarPrestamos = (lista: Prestamo[]) => {
-    setPrestamos(lista);
-    localStorage.setItem("prestamos", JSON.stringify(lista));
-  };
-
-  const guardarPagos = (lista: Pago[]) => {
-    setPagos(lista);
-    localStorage.setItem("pagos", JSON.stringify(lista));
-  };
-
   const registrarPago = () => {
-    const monto = Number(montoPagado || 0);
+    const monto = Number(montoPagado);
 
     if (!prestamoId) {
       alert("Selecciona un préstamo");
       return;
     }
 
-    if (monto <= 0) {
-      alert("El monto pagado debe ser mayor a 0");
+    if (!monto || monto <= 0) {
+      alert("Ingresa un monto válido");
       return;
     }
 
-    const prestamo = prestamos.find((p) => p.id === prestamoId);
-    if (!prestamo) {
+    const prestamoSeleccionado = prestamos.find((p) => p.id === prestamoId);
+    if (!prestamoSeleccionado) {
       alert("Préstamo no encontrado");
       return;
     }
 
-    const saldoActual = prestamo.saldoPendiente ?? prestamo.totalPagar;
+    const saldoActual =
+      typeof prestamoSeleccionado.saldoPendiente === "number"
+        ? prestamoSeleccionado.saldoPendiente
+        : prestamoSeleccionado.totalPagar;
 
-    if (monto > saldoActual) {
-      alert("El pago no puede ser mayor al saldo pendiente");
-      return;
-    }
+    const nuevoSaldo = Math.max(saldoActual - monto, 0);
 
-    const nuevoSaldo = saldoActual - monto;
-    const nuevoEstado = nuevoSaldo <= 0 ? "liquidado" : "activo";
-
-    const prestamosActualizados = prestamos.map((p) =>
+    const actualizados = prestamos.map((p) =>
       p.id === prestamoId
         ? {
             ...p,
             saldoPendiente: nuevoSaldo,
-            estado: nuevoEstado,
+            estado: nuevoSaldo === 0 ? "liquidado" : "activo",
           }
         : p
     );
 
-    guardarPrestamos(prestamosActualizados);
+    setPrestamos(actualizados);
+    localStorage.setItem("prestamos", JSON.stringify(actualizados));
 
     const nuevoPago: Pago = {
       id: Date.now().toString(),
-      prestamoId,
-      clienteNombre: prestamo.clienteNombre,
+      clienteNombre: prestamoSeleccionado.clienteNombre,
       montoPagado: monto,
       fecha: new Date().toLocaleDateString(),
     };
 
-    guardarPagos([nuevoPago, ...pagos]);
+    const historial = [nuevoPago, ...pagos];
+    setPagos(historial);
+    localStorage.setItem("pagos", JSON.stringify(historial));
 
     setPrestamoId("");
     setMontoPagado("");
   };
 
-  const prestamosActivos = prestamos.filter(
-    (p) => (p.estado ?? "activo") === "activo"
-  );
-
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f5f7fb",
-        padding: 24,
-        fontFamily: "Arial, sans-serif",
-        color: "#111827",
-      }}
-    >
+    <main style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
       <h1>Pagos</h1>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
@@ -149,31 +109,27 @@ export default function PagosPage() {
         </button>
       </div>
 
-      <section
-        style={{
-          background: "white",
-          padding: 16,
-          borderRadius: 12,
-          marginBottom: 20,
-          boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-        }}
-      >
+      <section style={{ marginBottom: 24 }}>
         <h2>Registrar pago</h2>
 
-        {prestamosActivos.length === 0 ? (
-          <p>No hay préstamos activos para registrar pagos.</p>
+        {prestamos.length === 0 ? (
+          <p>No hay préstamos registrados.</p>
         ) : (
-          <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "grid", gap: 10, maxWidth: 500 }}>
             <select
               value={prestamoId}
               onChange={(e) => setPrestamoId(e.target.value)}
-              style={{ padding: 12 }}
+              style={{ padding: 10 }}
             >
               <option value="">Selecciona un préstamo</option>
-              {prestamosActivos.map((prestamo) => (
-                <option key={prestamo.id} value={prestamo.id}>
-                  {prestamo.clienteNombre} - Saldo $
-                  {(prestamo.saldoPendiente ?? prestamo.totalPagar).toFixed(2)}
+              {prestamos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.clienteNombre} - Saldo $
+                  {(
+                    typeof p.saldoPendiente === "number"
+                      ? p.saldoPendiente
+                      : p.totalPagar
+                  ).toFixed(2)}
                 </option>
               ))}
             </select>
@@ -183,89 +139,52 @@ export default function PagosPage() {
               placeholder="Monto pagado"
               value={montoPagado}
               onChange={(e) => setMontoPagado(e.target.value)}
-              style={{ padding: 12 }}
+              style={{ padding: 10 }}
             />
 
-            <button
-              onClick={registrarPago}
-              style={{
-                padding: 12,
-                background: "#2563eb",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                fontWeight: 700,
-              }}
-            >
+            <button onClick={registrarPago} style={{ padding: 10 }}>
               Guardar pago
             </button>
           </div>
         )}
       </section>
 
-      <section
-        style={{
-          background: "white",
-          padding: 16,
-          borderRadius: 12,
-          marginBottom: 20,
-          boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-        }}
-      >
+      <section style={{ marginBottom: 24 }}>
         <h2>Estado de préstamos</h2>
-
         {prestamos.length === 0 ? (
-          <p>No hay préstamos registrados.</p>
+          <p>No hay préstamos.</p>
         ) : (
-          <div style={{ display: "grid", gap: 12 }}>
-            {prestamos.map((prestamo) => (
-              <div
-                key={prestamo.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 10,
-                  padding: 14,
-                }}
-              >
-                <div><strong>Cliente:</strong> {prestamo.clienteNombre}</div>
-                <div><strong>Total:</strong> ${prestamo.totalPagar.toFixed(2)}</div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {prestamos.map((p) => (
+              <div key={p.id} style={{ border: "1px solid #ccc", padding: 10 }}>
+                <div><strong>Cliente:</strong> {p.clienteNombre}</div>
+                <div><strong>Total:</strong> ${p.totalPagar.toFixed(2)}</div>
                 <div>
-                  <strong>Saldo pendiente:</strong> $
-                  {(prestamo.saldoPendiente ?? prestamo.totalPagar).toFixed(2)}
+                  <strong>Saldo:</strong> $
+                  {(
+                    typeof p.saldoPendiente === "number"
+                      ? p.saldoPendiente
+                      : p.totalPagar
+                  ).toFixed(2)}
                 </div>
-                <div><strong>Estado:</strong> {prestamo.estado ?? "activo"}</div>
+                <div><strong>Estado:</strong> {p.estado || "activo"}</div>
               </div>
             ))}
           </div>
         )}
       </section>
 
-      <section
-        style={{
-          background: "white",
-          padding: 16,
-          borderRadius: 12,
-          boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-        }}
-      >
+      <section>
         <h2>Historial de pagos</h2>
-
         {pagos.length === 0 ? (
-          <p>No hay pagos registrados todavía.</p>
+          <p>No hay pagos registrados.</p>
         ) : (
-          <div style={{ display: "grid", gap: 12 }}>
-            {pagos.map((pago) => (
-              <div
-                key={pago.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 10,
-                  padding: 14,
-                }}
-              >
-                <div><strong>Cliente:</strong> {pago.clienteNombre}</div>
-                <div><strong>Monto:</strong> ${pago.montoPagado.toFixed(2)}</div>
-                <div><strong>Fecha:</strong> {pago.fecha}</div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {pagos.map((p) => (
+              <div key={p.id} style={{ border: "1px solid #ccc", padding: 10 }}>
+                <div><strong>Cliente:</strong> {p.clienteNombre}</div>
+                <div><strong>Monto:</strong> ${p.montoPagado.toFixed(2)}</div>
+                <div><strong>Fecha:</strong> {p.fecha}</div>
               </div>
             ))}
           </div>
