@@ -4,14 +4,29 @@ import { useEffect, useState } from "react";
 
 type Prestamo = {
   id: string;
+  clienteId: string;
   clienteNombre: string;
+
+  tipo: "gota_a_gota" | "cuotas";
+
+  capital: number;
   totalPagar: number;
   saldoPendiente?: number;
-  estado?: string;
+  estado?: "activo" | "liquidado";
+  fecha: string;
+
+  utilidad?: number;
+  dias?: number;
+  cuotaDiaria?: number;
+
+  interes?: number;
+  numeroPagos?: number;
+  pagoPorCuota?: number;
 };
 
 type Pago = {
   id: string;
+  prestamoId: string;
   clienteNombre: string;
   montoPagado: number;
   fecha: string;
@@ -32,8 +47,18 @@ export default function PagosPage() {
 
     const prestamosGuardados = localStorage.getItem("prestamos");
     if (prestamosGuardados) {
-      const lista = JSON.parse(prestamosGuardados);
+      const lista: Prestamo[] = JSON.parse(prestamosGuardados).map((p: Prestamo) => ({
+        ...p,
+        saldoPendiente:
+          typeof p.saldoPendiente === "number" ? p.saldoPendiente : p.totalPagar,
+        estado:
+          p.estado ||
+          ((typeof p.saldoPendiente === "number" ? p.saldoPendiente : p.totalPagar) <= 0
+            ? "liquidado"
+            : "activo"),
+      }));
       setPrestamos(lista);
+      localStorage.setItem("prestamos", JSON.stringify(lista));
     }
 
     const pagosGuardados = localStorage.getItem("pagos");
@@ -66,6 +91,11 @@ export default function PagosPage() {
         ? prestamoSeleccionado.saldoPendiente
         : prestamoSeleccionado.totalPagar;
 
+    if (monto > saldoActual) {
+      alert("El pago no puede ser mayor al saldo pendiente");
+      return;
+    }
+
     const nuevoSaldo = Math.max(saldoActual - monto, 0);
 
     const actualizados = prestamos.map((p) =>
@@ -83,6 +113,7 @@ export default function PagosPage() {
 
     const nuevoPago: Pago = {
       id: Date.now().toString(),
+      prestamoId,
       clienteNombre: prestamoSeleccionado.clienteNombre,
       montoPagado: monto,
       fecha: new Date().toLocaleDateString(),
@@ -122,16 +153,18 @@ export default function PagosPage() {
               style={{ padding: 10 }}
             >
               <option value="">Selecciona un préstamo</option>
-              {prestamos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.clienteNombre} - Saldo $
-                  {(
-                    typeof p.saldoPendiente === "number"
-                      ? p.saldoPendiente
-                      : p.totalPagar
-                  ).toFixed(2)}
-                </option>
-              ))}
+              {prestamos
+                .filter((p) => (p.estado || "activo") === "activo")
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.clienteNombre} - {p.tipo} - Saldo $
+                    {(
+                      typeof p.saldoPendiente === "number"
+                        ? p.saldoPendiente
+                        : p.totalPagar
+                    ).toFixed(2)}
+                  </option>
+                ))}
             </select>
 
             <input
@@ -158,6 +191,7 @@ export default function PagosPage() {
             {prestamos.map((p) => (
               <div key={p.id} style={{ border: "1px solid #ccc", padding: 10 }}>
                 <div><strong>Cliente:</strong> {p.clienteNombre}</div>
+                <div><strong>Tipo:</strong> {p.tipo}</div>
                 <div><strong>Total:</strong> ${p.totalPagar.toFixed(2)}</div>
                 <div>
                   <strong>Saldo:</strong> $
