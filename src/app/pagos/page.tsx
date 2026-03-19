@@ -1,5 +1,5 @@
 "use client";
-// update pagos
+// force redeploy pagos
 import { useEffect, useState } from "react";
 
 type Prestamo = {
