@@ -11,11 +11,8 @@ export default function DashboardPage() {
         color: "#111827",
       }}
     >
-      <h1 style={{ fontSize: 28, marginBottom: 20 }}>
-        Panel de control
-      </h1>
+      <h1 style={{ fontSize: 28, marginBottom: 20 }}>Panel de control</h1>
 
-      {/* KPIs */}
       <div
         style={{
           display: "grid",
@@ -29,9 +26,12 @@ export default function DashboardPage() {
         <Card title="Préstamos activos" value="128" />
       </div>
 
-      {/* Acciones */}
       <div style={{ marginTop: 30, display: "grid", gap: 10 }}>
-        <button onClick={() => alert("Clientes (siguiente módulo)")}>
+        <button
+          onClick={() => {
+            window.location.href = "/clientes";
+          }}
+        >
           👤 Clientes
         </button>
 
@@ -44,7 +44,6 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Logout */}
       <button
         onClick={() => {
           localStorage.removeItem("auth");
@@ -66,7 +65,7 @@ export default function DashboardPage() {
   );
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value }: { title: string; value: string }) {
   return (
     <div
       style={{
