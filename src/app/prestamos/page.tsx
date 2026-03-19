@@ -18,6 +18,8 @@ type Prestamo = {
   numeroPagos: number;
   totalPagar: number;
   pagoPorCuota: number;
+  saldoPendiente: number;
+  estado: "activo" | "liquidado";
   fecha: string;
 };
 
@@ -95,6 +97,8 @@ export default function PrestamosPage() {
       numeroPagos: pagosNum,
       totalPagar,
       pagoPorCuota,
+      saldoPendiente: totalPagar,
+      estado: "activo",
       fecha: new Date().toLocaleDateString(),
     };
 
@@ -293,6 +297,14 @@ export default function PrestamosPage() {
 
                 <div style={{ marginTop: 4 }}>
                   <strong>Pago por cuota:</strong> ${prestamo.pagoPorCuota.toFixed(2)}
+                </div>
+
+                <div style={{ marginTop: 4 }}>
+                  <strong>Saldo pendiente:</strong> ${prestamo.saldoPendiente.toFixed(2)}
+                </div>
+
+                <div style={{ marginTop: 4 }}>
+                  <strong>Estado:</strong> {prestamo.estado}
                 </div>
 
                 <div style={{ marginTop: 4 }}>
