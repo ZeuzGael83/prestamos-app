@@ -44,7 +44,8 @@ export default function PagosPage() {
         saldoPendiente:
           typeof p.saldoPendiente === "number" ? p.saldoPendiente : p.totalPagar,
         estado:
-          p.estado || ((typeof p.saldoPendiente === "number" ? p.saldoPendiente : p.totalPagar) <= 0
+          p.estado ||
+          ((typeof p.saldoPendiente === "number" ? p.saldoPendiente : p.totalPagar) <= 0
             ? "liquidado"
             : "activo"),
       }));
