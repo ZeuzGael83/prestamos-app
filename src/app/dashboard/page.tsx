@@ -35,7 +35,11 @@ export default function DashboardPage() {
           👤 Clientes
         </button>
 
-        <button onClick={() => alert("Préstamos (siguiente módulo)")}>
+        <button
+          onClick={() => {
+            window.location.href = "/prestamos";
+          }}
+        >
           💰 Préstamos
         </button>
 
