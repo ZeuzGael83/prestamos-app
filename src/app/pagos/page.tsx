@@ -262,27 +262,4 @@ export default function PagosPage() {
           <p>No hay pagos registrados todavía.</p>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
-            {pagos.map((pago) => (
-              <div
-                key={pago.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 10,
-                  padding: 14,
-                }}
-              >
-                <div style={{ fontWeight: 700 }}>{pago.clienteNombre}</div>
-                <div>
-                  <strong>Monto pagado:</strong> ${pago.montoPagado.toFixed(2)}
-                </div>
-                <div>
-                  <strong>Fecha:</strong> {pago.fecha}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
+            {pag
