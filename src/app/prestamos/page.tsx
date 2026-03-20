@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 type Cliente = {
   id: string;
   nombre: string;
-  telefono?: string;
-  direccion?: string;
 };
 
 type Prestamo = {
@@ -29,29 +27,35 @@ export default function Page() {
 
   const [clienteId, setClienteId] = useState("");
   const [tipo, setTipo] = useState<"gota" | "cuotas">("gota");
-
   const [capital, setCapital] = useState("");
   const [utilidad, setUtilidad] = useState("");
   const [dias, setDias] = useState("");
-
   const [interes, setInteres] = useState("");
   const [numeroPagos, setNumeroPagos] = useState("");
 
   useEffect(() => {
-    const auth = localStorage.getItem("auth");
-    if (auth !== "true") {
-      window.location.href = "/login";
-      return;
-    }
+    try {
+      const auth = localStorage.getItem("auth");
+      if (auth !== "true") {
+        window.location.href = "/login";
+        return;
+      }
 
-    const clientesGuardados = localStorage.getItem("clientes");
-    if (clientesGuardados) {
-      setClientes(JSON.parse(clientesGuardados));
-    }
+      const clientesGuardados = localStorage.getItem("clientes");
+      if (clientesGuardados) {
+        setClientes(JSON.parse(clientesGuardados));
+      }
 
-    const prestamosGuardados = localStorage.getItem("prestamos");
-    if (prestamosGuardados) {
-      setPrestamos(JSON.parse(prestamosGuardados));
+      const prestamosGuardados = localStorage.getItem("prestamos");
+      if (prestamosGuardados) {
+        const lista = JSON.parse(prestamosGuardados);
+        if (Array.isArray(lista)) {
+          setPrestamos(lista);
+        }
+      }
+    } catch (error) {
+      console.log("Error cargando datos de préstamos", error);
+      setPrestamos([]);
     }
   }, []);
 
@@ -76,7 +80,8 @@ export default function Page() {
       return;
     }
 
-    if (!capital || Number(capital) <= 0) {
+    const capitalNum = Number(capital);
+    if (!capitalNum || capitalNum <= 0) {
       alert("Ingresa un capital válido");
       return;
     }
@@ -88,68 +93,61 @@ export default function Page() {
     }
 
     if (tipo === "gota") {
-      if (!utilidad || Number(utilidad) < 0) {
-        alert("Ingresa una utilidad válida");
+      const utilidadNum = Number(utilidad);
+      const diasNum = Number(dias);
+
+      if (utilidadNum < 0 || !diasNum || diasNum <= 0) {
+        alert("Ingresa utilidad y días válidos");
         return;
       }
 
-      if (!dias || Number(dias) <= 0) {
-        alert("Ingresa días válidos");
-        return;
-      }
-
-      const total = Number(capital) + Number(utilidad);
+      const total = capitalNum + utilidadNum;
 
       const nuevo: Prestamo = {
         id: Date.now().toString(),
         clienteId,
         clienteNombre: cliente.nombre,
         tipo: "gota",
-        capital: Number(capital),
-        utilidad: Number(utilidad),
-        dias: Number(dias),
+        capital: capitalNum,
+        utilidad: utilidadNum,
+        dias: diasNum,
         total,
         saldo: total,
       };
 
-      const lista = [nuevo, ...prestamos];
-      guardarPrestamos(lista);
+      guardarPrestamos([nuevo, ...prestamos]);
       limpiar();
       return;
     }
 
-    if (!interes || Number(interes) < 0) {
-      alert("Ingresa un interés válido");
+    const interesNum = Number(interes);
+    const pagosNum = Number(numeroPagos);
+
+    if (interesNum < 0 || !pagosNum || pagosNum <= 0) {
+      alert("Ingresa interés y número de pagos válidos");
       return;
     }
 
-    if (!numeroPagos || Number(numeroPagos) <= 0) {
-      alert("Ingresa número de pagos válido");
-      return;
-    }
-
-    const total = Number(capital) + Number(capital) * (Number(interes) / 100);
+    const total = capitalNum + capitalNum * (interesNum / 100);
 
     const nuevo: Prestamo = {
       id: Date.now().toString(),
       clienteId,
       clienteNombre: cliente.nombre,
       tipo: "cuotas",
-      capital: Number(capital),
-      interes: Number(interes),
-      numeroPagos: Number(numeroPagos),
+      capital: capitalNum,
+      interes: interesNum,
+      numeroPagos: pagosNum,
       total,
       saldo: total,
     };
 
-    const lista = [nuevo, ...prestamos];
-    guardarPrestamos(lista);
+    guardarPrestamos([nuevo, ...prestamos]);
     limpiar();
   };
 
   const eliminar = (id: string) => {
-    const lista = prestamos.filter((p) => p.id !== id);
-    guardarPrestamos(lista);
+    guardarPrestamos(prestamos.filter((p) => p.id !== id));
   };
 
   return (
@@ -241,19 +239,19 @@ export default function Page() {
           >
             <div><strong>{p.clienteNombre}</strong></div>
             <div>Tipo: {p.tipo === "gota" ? "Gota a gota" : "Cuotas + interés"}</div>
-            <div>Capital: ${p.capital.toFixed(2)}</div>
-            <div>Total: ${p.total.toFixed(2)}</div>
-            <div>Saldo: ${p.saldo.toFixed(2)}</div>
+            <div>Capital: ${Number(p.capital || 0).toFixed(2)}</div>
+            <div>Total: ${Number(p.total || 0).toFixed(2)}</div>
+            <div>Saldo: ${Number(p.saldo || 0).toFixed(2)}</div>
 
             {p.tipo === "gota" ? (
               <>
                 <div>Utilidad: ${Number(p.utilidad || 0).toFixed(2)}</div>
-                <div>Días: {p.dias}</div>
+                <div>Días: {p.dias || 0}</div>
               </>
             ) : (
               <>
-                <div>Interés: {p.interes}%</div>
-                <div>Número de pagos: {p.numeroPagos}</div>
+                <div>Interés: {Number(p.interes || 0)}%</div>
+                <div>Número de pagos: {Number(p.numeroPagos || 0)}</div>
               </>
             )}
 
