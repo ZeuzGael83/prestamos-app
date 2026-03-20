@@ -106,12 +106,10 @@ export default function PagosPage() {
 
     if (!digitos) return "";
 
-    // Si ya viene como 52XXXXXXXXXX (México)
     if (digitos.startsWith("52") && digitos.length === 12) {
       return digitos;
     }
 
-    // Si viene local (10 dígitos)
     if (digitos.length === 10) {
       return `52${digitos}`;
     }
@@ -142,9 +140,20 @@ export default function PagosPage() {
       return;
     }
 
-    const mensaje = `Hola ${prestamo.clienteNombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
+    const mensajeBase = `Hola ${prestamo.clienteNombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
 
-    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+    const mensajeEditado = window.prompt(
+      "Edita el mensaje antes de enviarlo:",
+      mensajeBase
+    );
+
+    if (!mensajeEditado) {
+      return;
+    }
+
+    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(
+      mensajeEditado
+    )}`;
 
     window.open(url, "_blank");
   };
