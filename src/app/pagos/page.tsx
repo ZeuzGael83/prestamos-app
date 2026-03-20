@@ -132,7 +132,7 @@ export default function PagosPage() {
             {/* BOTÓN WHATSAPP */}
             <button
               onClick={() => {
-                const telefono = "525511111111"; // 🔴 CAMBIA ESTE NÚMERO
+                const telefono = "52555618557964"; // 🔴 CAMBIA ESTE NÚMERO
 
                 const mensaje = `Hola ${p.clienteNombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
 
