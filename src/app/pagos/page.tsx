@@ -38,7 +38,7 @@ export default function PagosPage() {
         if (Array.isArray(listaPrestamos)) setPrestamos(listaPrestamos);
       }
     } catch (e) {
-      console.log("Error cargando datos");
+      console.log("Error cargando datos", e);
     }
   }, []);
 
@@ -86,11 +86,19 @@ export default function PagosPage() {
   };
 
   const obtenerTelefonoCliente = (prestamo: Prestamo) => {
-    const cliente =
-      clientes.find((c) => prestamo.clienteId && c.id === prestamo.clienteId) ||
-      clientes.find((c) => c.nombre === prestamo.clienteNombre);
+    const porId = clientes.find(
+      (c) => prestamo.clienteId && c.id === prestamo.clienteId
+    );
 
-    return cliente?.telefono || "";
+    if (porId?.telefono) return porId.telefono;
+
+    const porNombre = clientes.find(
+      (c) =>
+        c.nombre.trim().toLowerCase() ===
+        prestamo.clienteNombre.trim().toLowerCase()
+    );
+
+    return porNombre?.telefono || "";
   };
 
   const normalizarTelefonoWhatsapp = (telefono: string) => {
@@ -98,17 +106,21 @@ export default function PagosPage() {
 
     if (!digitos) return "";
 
-    // Si ya viene con 52 al inicio
-    if (digitos.startsWith("52") && digitos.length >= 12) {
+    // Si ya viene como 521XXXXXXXXXX
+    if (digitos.startsWith("521") && digitos.length === 13) {
       return digitos;
     }
 
-    // Si viene como celular nacional de 10 dígitos, le agrega 52
-    if (digitos.length === 10) {
-      return `52${digitos}`;
+    // Si viene como 52XXXXXXXXXX, lo convertimos a 521XXXXXXXXXX
+    if (digitos.startsWith("52") && digitos.length === 12) {
+      return `521${digitos.slice(2)}`;
     }
 
-    // Si viene con 12+ dígitos pero sin símbolos, lo usa tal cual
+    // Si viene local de México: 10 dígitos
+    if (digitos.length === 10) {
+      return `521${digitos}`;
+    }
+
     return digitos;
   };
 
@@ -131,7 +143,7 @@ export default function PagosPage() {
     const telefono = normalizarTelefonoWhatsapp(telefonoOriginal);
 
     if (!telefono) {
-      alert("Este cliente no tiene teléfono válido registrado.");
+      alert("Este cliente no tiene teléfono registrado o no se encontró.");
       return;
     }
 
@@ -199,7 +211,8 @@ export default function PagosPage() {
             ? p.saldoPendiente
             : totalBase;
 
-        const telefono = obtenerTelefonoCliente(p);
+        const telefonoOriginal = obtenerTelefonoCliente(p);
+        const telefonoNormalizado = normalizarTelefonoWhatsapp(telefonoOriginal);
 
         return (
           <div
@@ -211,7 +224,8 @@ export default function PagosPage() {
             </div>
             <div>Total: ${totalBase}</div>
             <div>Saldo: ${saldo}</div>
-            <div>Teléfono: {telefono || "No registrado"}</div>
+            <div>Teléfono guardado: {telefonoOriginal || "No registrado"}</div>
+            <div>Teléfono WhatsApp: {telefonoNormalizado || "Inválido"}</div>
 
             <button
               onClick={() => abrirWhatsapp(p)}
