@@ -20,8 +20,12 @@ type Prestamo = {
 
 type Pago = {
   prestamoId: string;
+  clienteId?: string;
+  clienteNombre: string;
   monto: number;
   fecha: string;
+  folio: string;
+  saldoRestante: number;
 };
 
 export default function PagosPage() {
@@ -47,60 +51,6 @@ export default function PagosPage() {
       console.log("Error cargando datos", e);
     }
   }, []);
-
-  const guardarPago = () => {
-    const montoNum = Number(monto);
-
-    if (!prestamoId || montoNum <= 0) {
-      alert("Datos inválidos");
-      return;
-    }
-
-    const nuevosPrestamos = prestamos.map((p) => {
-      if (p.id === prestamoId) {
-        const totalBase =
-          typeof p.total === "number"
-            ? p.total
-            : typeof p.totalPagar === "number"
-            ? p.totalPagar
-            : 0;
-
-        const saldoActual =
-          typeof p.saldo === "number"
-            ? p.saldo
-            : typeof p.saldoPendiente === "number"
-            ? p.saldoPendiente
-            : totalBase;
-
-        const nuevoSaldo = saldoActual - montoNum;
-
-        return {
-          ...p,
-          saldo: nuevoSaldo < 0 ? 0 : nuevoSaldo,
-          saldoPendiente: nuevoSaldo < 0 ? 0 : nuevoSaldo,
-        };
-      }
-
-      return p;
-    });
-
-    const pagosGuardados = JSON.parse(localStorage.getItem("pagos") || "[]");
-
-    const nuevoPago: Pago = {
-      prestamoId: prestamoId,
-      monto: montoNum,
-      fecha: new Date().toLocaleDateString(),
-    };
-
-    const nuevosPagos = [nuevoPago, ...pagosGuardados];
-
-    localStorage.setItem("pagos", JSON.stringify(nuevosPagos));
-    setPrestamos(nuevosPrestamos);
-    localStorage.setItem("prestamos", JSON.stringify(nuevosPrestamos));
-
-    setMonto("");
-    setPrestamoId("");
-  };
 
   const obtenerTelefonoCliente = (prestamo: Prestamo) => {
     const porId = clientes.find(
@@ -134,36 +84,127 @@ export default function PagosPage() {
     return digitos;
   };
 
-  const abrirWhatsapp = (prestamo: Prestamo) => {
-    const totalBase =
-      typeof prestamo.total === "number"
-        ? prestamo.total
-        : typeof prestamo.totalPagar === "number"
-        ? prestamo.totalPagar
-        : 0;
+  const generarFolio = () => {
+    const ahora = new Date();
+    const yyyy = ahora.getFullYear();
+    const mm = String(ahora.getMonth() + 1).padStart(2, "0");
+    const dd = String(ahora.getDate()).padStart(2, "0");
+    const hh = String(ahora.getHours()).padStart(2, "0");
+    const mi = String(ahora.getMinutes()).padStart(2, "0");
+    const ss = String(ahora.getSeconds()).padStart(2, "0");
 
-    const saldo =
-      typeof prestamo.saldo === "number"
-        ? prestamo.saldo
-        : typeof prestamo.saldoPendiente === "number"
-        ? prestamo.saldoPendiente
-        : totalBase;
+    return `PG-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
+  };
 
+  const abrirWhatsappConTicket = (
+    prestamo: Prestamo,
+    montoPagado: number,
+    saldoRestante: number,
+    folio: string
+  ) => {
     const telefonoOriginal = obtenerTelefonoCliente(prestamo);
     const telefono = normalizarTelefonoWhatsapp(telefonoOriginal);
 
     if (!telefono) {
-      alert("Cliente sin teléfono válido");
+      alert("Pago guardado, pero el cliente no tiene teléfono válido.");
       return;
     }
 
-    const mensajeBase = `Hola ${prestamo.clienteNombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
+    const fecha = new Date().toLocaleDateString();
+
+    const mensaje = `🧾 Ticket de pago
+Folio: ${folio}
+Cliente: ${prestamo.clienteNombre}
+Fecha: ${fecha}
+Monto pagado: $${montoPagado}
+Saldo restante: $${saldoRestante}
+
+Gracias por su pago.`;
 
     const url = `https://wa.me/${telefono}?text=${encodeURIComponent(
-      mensajeBase
+      mensaje
     )}`;
 
     window.open(url, "_blank");
+  };
+
+  const guardarPago = () => {
+    const montoNum = Number(monto);
+
+    if (!prestamoId || montoNum <= 0) {
+      alert("Datos inválidos");
+      return;
+    }
+
+    const prestamoSeleccionado = prestamos.find((p) => p.id === prestamoId);
+
+    if (!prestamoSeleccionado) {
+      alert("Préstamo no encontrado");
+      return;
+    }
+
+    const totalBase =
+      typeof prestamoSeleccionado.total === "number"
+        ? prestamoSeleccionado.total
+        : typeof prestamoSeleccionado.totalPagar === "number"
+        ? prestamoSeleccionado.totalPagar
+        : 0;
+
+    const saldoActual =
+      typeof prestamoSeleccionado.saldo === "number"
+        ? prestamoSeleccionado.saldo
+        : typeof prestamoSeleccionado.saldoPendiente === "number"
+        ? prestamoSeleccionado.saldoPendiente
+        : totalBase;
+
+    if (montoNum > saldoActual) {
+      alert("El pago no puede ser mayor al saldo pendiente");
+      return;
+    }
+
+    const nuevoSaldo = saldoActual - montoNum < 0 ? 0 : saldoActual - montoNum;
+
+    const nuevosPrestamos = prestamos.map((p) => {
+      if (p.id === prestamoId) {
+        return {
+          ...p,
+          saldo: nuevoSaldo,
+          saldoPendiente: nuevoSaldo,
+        };
+      }
+
+      return p;
+    });
+
+    const pagosGuardados = JSON.parse(localStorage.getItem("pagos") || "[]");
+    const folio = generarFolio();
+    const fecha = new Date().toLocaleDateString();
+
+    const nuevoPago: Pago = {
+      prestamoId: prestamoId,
+      clienteId: prestamoSeleccionado.clienteId,
+      clienteNombre: prestamoSeleccionado.clienteNombre,
+      monto: montoNum,
+      fecha,
+      folio,
+      saldoRestante: nuevoSaldo,
+    };
+
+    const nuevosPagos = [nuevoPago, ...pagosGuardados];
+
+    localStorage.setItem("pagos", JSON.stringify(nuevosPagos));
+    setPrestamos(nuevosPrestamos);
+    localStorage.setItem("prestamos", JSON.stringify(nuevosPrestamos));
+
+    setMonto("");
+    setPrestamoId("");
+
+    abrirWhatsappConTicket(
+      prestamoSeleccionado,
+      montoNum,
+      nuevoSaldo,
+      folio
+    );
   };
 
   return (
@@ -236,7 +277,9 @@ export default function PagosPage() {
             <div>Saldo: ${saldo}</div>
 
             <button
-              onClick={() => abrirWhatsapp(p)}
+              onClick={() =>
+                abrirWhatsappConTicket(p, 0, saldo, "CONSULTA-SALDO")
+              }
               style={{
                 marginTop: 10,
                 background: "green",
