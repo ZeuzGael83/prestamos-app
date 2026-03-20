@@ -18,6 +18,12 @@ type Prestamo = {
   saldoPendiente?: number;
 };
 
+type Pago = {
+  prestamoId: string;
+  monto: number;
+  fecha: string;
+};
+
 export default function PagosPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
@@ -50,7 +56,7 @@ export default function PagosPage() {
       return;
     }
 
-    const nuevos = prestamos.map((p) => {
+    const nuevosPrestamos = prestamos.map((p) => {
       if (p.id === prestamoId) {
         const totalBase =
           typeof p.total === "number"
@@ -78,8 +84,19 @@ export default function PagosPage() {
       return p;
     });
 
-    setPrestamos(nuevos);
-    localStorage.setItem("prestamos", JSON.stringify(nuevos));
+    const pagosGuardados = JSON.parse(localStorage.getItem("pagos") || "[]");
+
+    const nuevoPago: Pago = {
+      prestamoId: prestamoId,
+      monto: montoNum,
+      fecha: new Date().toLocaleDateString(),
+    };
+
+    const nuevosPagos = [nuevoPago, ...pagosGuardados];
+
+    localStorage.setItem("pagos", JSON.stringify(nuevosPagos));
+    setPrestamos(nuevosPrestamos);
+    localStorage.setItem("prestamos", JSON.stringify(nuevosPrestamos));
 
     setMonto("");
     setPrestamoId("");
@@ -142,24 +159,15 @@ export default function PagosPage() {
 
     const mensajeBase = `Hola ${prestamo.clienteNombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
 
-    const mensajeEditado = window.prompt(
-      "Edita el mensaje antes de enviarlo:",
-      mensajeBase
-    );
-
-    if (!mensajeEditado) {
-      return;
-    }
-
     const url = `https://wa.me/${telefono}?text=${encodeURIComponent(
-      mensajeEditado
+      mensajeBase
     )}`;
 
     window.open(url, "_blank");
   };
 
   return (
-    <main style={{ padding: 20 }}>
+    <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
       <h1>Pagos</h1>
 
       <h2>Registrar pago</h2>
