@@ -41,12 +41,10 @@ export default function ClientesPage() {
   const normalizarTelefono = (valor: string) => {
     const digitos = valor.replace(/\D/g, "");
 
-    // Si escriben +52 o 52 al inicio, deja solo los 10 dígitos locales
     if (digitos.startsWith("52") && digitos.length >= 12) {
       return digitos.slice(-10);
     }
 
-    // Si escriben más de 10, conserva los últimos 10
     if (digitos.length > 10) {
       return digitos.slice(-10);
     }
@@ -150,9 +148,17 @@ export default function ClientesPage() {
             <div>Teléfono: {cliente.telefono}</div>
             <div>Dirección: {cliente.direccion}</div>
 
-            <button onClick={() => eliminarCliente(cliente.id)} style={{ marginTop: 10 }}>
-              Eliminar
-            </button>
+            <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={() => (window.location.href = `/clientes/${cliente.id}`)}
+              >
+                Ver detalle
+              </button>
+
+              <button onClick={() => eliminarCliente(cliente.id)}>
+                Eliminar
+              </button>
+            </div>
           </div>
         ))
       )}
