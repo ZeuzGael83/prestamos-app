@@ -14,7 +14,9 @@ type Prestamo = {
   clienteId?: string;
   clienteNombre: string;
   total?: number;
+  totalPagar?: number;
   saldo?: number;
+  saldoPendiente?: number;
 };
 
 type Pago = {
@@ -29,83 +31,152 @@ export default function ClienteDetalle({ params }: any) {
   const [pagos, setPagos] = useState<Pago[]>([]);
 
   useEffect(() => {
-    const clientesData = JSON.parse(localStorage.getItem("clientes") || "[]");
-    const prestamosData = JSON.parse(localStorage.getItem("prestamos") || "[]");
-    const pagosData = JSON.parse(localStorage.getItem("pagos") || "[]");
+    try {
+      const clientesData = JSON.parse(localStorage.getItem("clientes") || "[]");
+      const prestamosData = JSON.parse(localStorage.getItem("prestamos") || "[]");
+      const pagosData = JSON.parse(localStorage.getItem("pagos") || "[]");
 
-    const clienteEncontrado = clientesData.find(
-      (c: Cliente) => c.id === params.id
-    );
+      const clienteEncontrado = clientesData.find(
+        (c: Cliente) => c.id === params.id
+      );
 
-    setCliente(clienteEncontrado || null);
+      setCliente(clienteEncontrado || null);
 
-    const prestamosCliente = prestamosData.filter(
-      (p: Prestamo) => p.clienteId === params.id
-    );
+      const prestamosCliente = prestamosData.filter((p: Prestamo) => {
+        if (p.clienteId) return p.clienteId === params.id;
+        return (
+          clienteEncontrado &&
+          p.clienteNombre?.trim().toLowerCase() ===
+            clienteEncontrado.nombre.trim().toLowerCase()
+        );
+      });
 
-    setPrestamos(prestamosCliente);
-    setPagos(pagosData);
+      setPrestamos(prestamosCliente);
+      setPagos(Array.isArray(pagosData) ? pagosData : []);
+    } catch (e) {
+      console.log("Error cargando detalle del cliente", e);
+    }
   }, [params.id]);
 
-  if (!cliente) return <div>Cargando...</div>;
+  if (!cliente) {
+    return <main style={{ padding: 20 }}>Cliente no encontrado.</main>;
+  }
 
-  const totalSaldo = prestamos.reduce((acc, p) => {
-    return acc + (p.saldo || p.total || 0);
+  const totalPendiente = prestamos.reduce((acc, p) => {
+    const totalBase =
+      typeof p.total === "number"
+        ? p.total
+        : typeof p.totalPagar === "number"
+        ? p.totalPagar
+        : 0;
+
+    const saldo =
+      typeof p.saldo === "number"
+        ? p.saldo
+        : typeof p.saldoPendiente === "number"
+        ? p.saldoPendiente
+        : totalBase;
+
+    return acc + saldo;
   }, 0);
 
-  const abrirWhatsapp = () => {
-    const telefono = `52${cliente.telefono}`;
-    const mensaje = `Hola ${cliente.nombre}, tienes un saldo pendiente total de $${totalSaldo}.`;
-
-    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
-    window.open(url, "_blank");
-  };
+  const telefonoWhatsapp = `52${cliente.telefono}`;
+  const mensaje = `Hola ${cliente.nombre}, tu saldo pendiente total es de $${totalPendiente}.`;
+  const urlWhatsapp = `https://wa.me/${telefonoWhatsapp}?text=${encodeURIComponent(
+    mensaje
+  )}`;
 
   return (
-    <main style={{ padding: 20 }}>
+    <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
       <h1>Ficha del cliente</h1>
 
-      <button onClick={() => (window.location.href = "/clientes")}>
-        ← Volver
-      </button>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
+        <button onClick={() => (window.location.href = "/clientes")}>
+          ← Volver a clientes
+        </button>
 
-      <hr />
+        <button
+          onClick={() => window.open(urlWhatsapp, "_blank")}
+          style={{ background: "green", color: "white" }}
+        >
+          WhatsApp
+        </button>
+      </div>
 
-      <h2>{cliente.nombre}</h2>
-      <p>📞 {cliente.telefono}</p>
-      <p>📍 {cliente.direccion}</p>
-
-      <button
-        onClick={abrirWhatsapp}
-        style={{ background: "green", color: "white" }}
+      <section
+        style={{
+          border: "1px solid #ccc",
+          padding: 12,
+          marginBottom: 20,
+          maxWidth: 600,
+        }}
       >
-        WhatsApp
-      </button>
+        <div><strong>Nombre:</strong> {cliente.nombre}</div>
+        <div><strong>Teléfono:</strong> {cliente.telefono}</div>
+        <div><strong>Dirección:</strong> {cliente.direccion}</div>
+        <div><strong>Total pendiente:</strong> ${totalPendiente}</div>
+      </section>
 
-      <hr />
+      <h2>Préstamos del cliente</h2>
 
-      <h3>Préstamos</h3>
+      {prestamos.length === 0 ? (
+        <p>No hay préstamos asociados.</p>
+      ) : (
+        prestamos.map((prestamo) => {
+          const totalBase =
+            typeof prestamo.total === "number"
+              ? prestamo.total
+              : typeof prestamo.totalPagar === "number"
+              ? prestamo.totalPagar
+              : 0;
 
-      {prestamos.map((p) => (
-        <div key={p.id} style={{ border: "1px solid #ccc", padding: 10 }}>
-          <div>Total: ${p.total}</div>
-          <div>Saldo: ${p.saldo}</div>
+          const saldo =
+            typeof prestamo.saldo === "number"
+              ? prestamo.saldo
+              : typeof prestamo.saldoPendiente === "number"
+              ? prestamo.saldoPendiente
+              : totalBase;
 
-          <h4>Pagos:</h4>
+          const pagosPrestamo = pagos.filter(
+            (pago) => pago.prestamoId === prestamo.id
+          );
 
-          {pagos
-            .filter((pg) => pg.prestamoId === p.id)
-            .map((pg, i) => (
-              <div key={i}>
-                💰 ${pg.monto} — {pg.fecha}
-              </div>
-            ))}
-        </div>
-      ))}
+          return (
+            <div
+              key={prestamo.id}
+              style={{
+                border: "1px solid #ccc",
+                padding: 12,
+                marginBottom: 16,
+                maxWidth: 650,
+              }}
+            >
+              <div><strong>Total:</strong> ${totalBase}</div>
+              <div><strong>Saldo:</strong> ${saldo}</div>
 
-      <hr />
+              <h3 style={{ marginTop: 16 }}>Historial de pagos</h3>
 
-      <h3>Total pendiente: ${totalSaldo}</h3>
+              {pagosPrestamo.length === 0 ? (
+                <p>No hay pagos registrados para este préstamo.</p>
+              ) : (
+                pagosPrestamo.map((pago, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      borderTop: "1px solid #eee",
+                      paddingTop: 8,
+                      marginTop: 8,
+                    }}
+                  >
+                    <div>Monto: ${pago.monto}</div>
+                    <div>Fecha: {pago.fecha}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          );
+        })
+      )}
     </main>
   );
 }
