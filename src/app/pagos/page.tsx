@@ -106,19 +106,14 @@ export default function PagosPage() {
 
     if (!digitos) return "";
 
-    // Si ya viene como 521XXXXXXXXXX
-    if (digitos.startsWith("521") && digitos.length === 13) {
+    // Si ya viene como 52XXXXXXXXXX (México)
+    if (digitos.startsWith("52") && digitos.length === 12) {
       return digitos;
     }
 
-    // Si viene como 52XXXXXXXXXX, lo convertimos a 521XXXXXXXXXX
-    if (digitos.startsWith("52") && digitos.length === 12) {
-      return `521${digitos.slice(2)}`;
-    }
-
-    // Si viene local de México: 10 dígitos
+    // Si viene local (10 dígitos)
     if (digitos.length === 10) {
-      return `521${digitos}`;
+      return `52${digitos}`;
     }
 
     return digitos;
@@ -143,11 +138,12 @@ export default function PagosPage() {
     const telefono = normalizarTelefonoWhatsapp(telefonoOriginal);
 
     if (!telefono) {
-      alert("Este cliente no tiene teléfono registrado o no se encontró.");
+      alert("Cliente sin teléfono válido");
       return;
     }
 
     const mensaje = `Hola ${prestamo.clienteNombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
+
     const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
 
     window.open(url, "_blank");
@@ -211,9 +207,6 @@ export default function PagosPage() {
             ? p.saldoPendiente
             : totalBase;
 
-        const telefonoOriginal = obtenerTelefonoCliente(p);
-        const telefonoNormalizado = normalizarTelefonoWhatsapp(telefonoOriginal);
-
         return (
           <div
             key={p.id}
@@ -224,8 +217,6 @@ export default function PagosPage() {
             </div>
             <div>Total: ${totalBase}</div>
             <div>Saldo: ${saldo}</div>
-            <div>Teléfono guardado: {telefonoOriginal || "No registrado"}</div>
-            <div>Teléfono WhatsApp: {telefonoNormalizado || "Inválido"}</div>
 
             <button
               onClick={() => abrirWhatsapp(p)}
