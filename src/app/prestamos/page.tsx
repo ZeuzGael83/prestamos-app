@@ -34,6 +34,9 @@ export default function Page() {
   const [numeroPagos, setNumeroPagos] = useState("");
 
   useEffect(() => {
+    // 👇 LIMPIEZA AUTOMÁTICA (temporal)
+    localStorage.removeItem("prestamos");
+
     try {
       const auth = localStorage.getItem("auth");
       if (auth !== "true") {
@@ -54,7 +57,7 @@ export default function Page() {
         }
       }
     } catch (error) {
-      console.log("Error cargando datos de préstamos", error);
+      console.log("Error cargando datos", error);
       setPrestamos([]);
     }
   }, []);
@@ -151,21 +154,16 @@ export default function Page() {
   };
 
   return (
-    <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
+    <main style={{ padding: 20 }}>
       <h1>Préstamos híbrido</h1>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-        <button onClick={() => (window.location.href = "/dashboard")}>
-          ← Volver al dashboard
-        </button>
-        <button onClick={() => (window.location.href = "/pagos")}>
-          Ver pagos
-        </button>
-      </div>
+      <button onClick={() => (window.location.href = "/pagos")}>
+        Ir a pagos
+      </button>
 
-      <section style={{ display: "grid", gap: 10, maxWidth: 500 }}>
+      <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
         <select value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-          <option value="">Selecciona un cliente</option>
+          <option value="">Selecciona cliente</option>
           {clientes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.nombre}
@@ -173,94 +171,41 @@ export default function Page() {
           ))}
         </select>
 
-        <select value={tipo} onChange={(e) => setTipo(e.target.value as "gota" | "cuotas")}>
+        <select value={tipo} onChange={(e) => setTipo(e.target.value as any)}>
           <option value="gota">Gota a gota</option>
           <option value="cuotas">Cuotas + interés</option>
         </select>
 
-        <input
-          type="number"
-          placeholder="Capital"
-          value={capital}
-          onChange={(e) => setCapital(e.target.value)}
-        />
+        <input placeholder="Capital" value={capital} onChange={(e) => setCapital(e.target.value)} />
 
         {tipo === "gota" ? (
           <>
-            <input
-              type="number"
-              placeholder="Utilidad"
-              value={utilidad}
-              onChange={(e) => setUtilidad(e.target.value)}
-            />
-            <input
-              type="number"
-              placeholder="Días"
-              value={dias}
-              onChange={(e) => setDias(e.target.value)}
-            />
+            <input placeholder="Utilidad" value={utilidad} onChange={(e) => setUtilidad(e.target.value)} />
+            <input placeholder="Días" value={dias} onChange={(e) => setDias(e.target.value)} />
           </>
         ) : (
           <>
-            <input
-              type="number"
-              placeholder="Interés %"
-              value={interes}
-              onChange={(e) => setInteres(e.target.value)}
-            />
-            <input
-              type="number"
-              placeholder="Número de pagos"
-              value={numeroPagos}
-              onChange={(e) => setNumeroPagos(e.target.value)}
-            />
+            <input placeholder="Interés %" value={interes} onChange={(e) => setInteres(e.target.value)} />
+            <input placeholder="Número de pagos" value={numeroPagos} onChange={(e) => setNumeroPagos(e.target.value)} />
           </>
         )}
 
         <button onClick={guardar}>Guardar préstamo</button>
-      </section>
+      </div>
 
-      <hr style={{ margin: "24px 0" }} />
+      <hr />
 
-      <h2>Listado de préstamos</h2>
+      <h2>Listado</h2>
 
-      {prestamos.length === 0 ? (
-        <p>No hay préstamos registrados.</p>
-      ) : (
-        prestamos.map((p) => (
-          <div
-            key={p.id}
-            style={{
-              border: "1px solid #ccc",
-              padding: 12,
-              marginBottom: 12,
-              maxWidth: 520,
-            }}
-          >
-            <div><strong>{p.clienteNombre}</strong></div>
-            <div>Tipo: {p.tipo === "gota" ? "Gota a gota" : "Cuotas + interés"}</div>
-            <div>Capital: ${Number(p.capital || 0).toFixed(2)}</div>
-            <div>Total: ${Number(p.total || 0).toFixed(2)}</div>
-            <div>Saldo: ${Number(p.saldo || 0).toFixed(2)}</div>
-
-            {p.tipo === "gota" ? (
-              <>
-                <div>Utilidad: ${Number(p.utilidad || 0).toFixed(2)}</div>
-                <div>Días: {p.dias || 0}</div>
-              </>
-            ) : (
-              <>
-                <div>Interés: {Number(p.interes || 0)}%</div>
-                <div>Número de pagos: {Number(p.numeroPagos || 0)}</div>
-              </>
-            )}
-
-            <button onClick={() => eliminar(p.id)} style={{ marginTop: 10 }}>
-              Eliminar
-            </button>
-          </div>
-        ))
-      )}
+      {prestamos.map((p) => (
+        <div key={p.id} style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}>
+          <strong>{p.clienteNombre}</strong>
+          <div>Tipo: {p.tipo}</div>
+          <div>Total: ${p.total}</div>
+          <div>Saldo: ${p.saldo}</div>
+          <button onClick={() => eliminar(p.id)}>Eliminar</button>
+        </div>
+      ))}
     </main>
   );
 }
