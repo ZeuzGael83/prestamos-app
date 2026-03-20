@@ -34,9 +34,6 @@ export default function Page() {
   const [numeroPagos, setNumeroPagos] = useState("");
 
   useEffect(() => {
-    // 👇 LIMPIEZA AUTOMÁTICA (temporal)
-    localStorage.removeItem("prestamos");
-
     try {
       const auth = localStorage.getItem("auth");
       if (auth !== "true") {
@@ -99,8 +96,8 @@ export default function Page() {
       const utilidadNum = Number(utilidad);
       const diasNum = Number(dias);
 
-      if (utilidadNum < 0 || !diasNum || diasNum <= 0) {
-        alert("Ingresa utilidad y días válidos");
+      if (!utilidadNum || !diasNum) {
+        alert("Completa utilidad y días");
         return;
       }
 
@@ -126,8 +123,8 @@ export default function Page() {
     const interesNum = Number(interes);
     const pagosNum = Number(numeroPagos);
 
-    if (interesNum < 0 || !pagosNum || pagosNum <= 0) {
-      alert("Ingresa interés y número de pagos válidos");
+    if (!interesNum || !pagosNum) {
+      alert("Completa interés y número de pagos");
       return;
     }
 
@@ -157,13 +154,18 @@ export default function Page() {
     <main style={{ padding: 20 }}>
       <h1>Préstamos híbrido</h1>
 
-      <button onClick={() => (window.location.href = "/pagos")}>
-        Ir a pagos
-      </button>
+      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+        <button onClick={() => (window.location.href = "/dashboard")}>
+          ← Volver al dashboard
+        </button>
+        <button onClick={() => (window.location.href = "/pagos")}>
+          Ver pagos
+        </button>
+      </div>
 
       <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
         <select value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-          <option value="">Selecciona cliente</option>
+          <option value="">Selecciona un cliente</option>
           {clientes.map((c) => (
             <option key={c.id} value={c.id}>
               {c.nombre}
@@ -176,17 +178,46 @@ export default function Page() {
           <option value="cuotas">Cuotas + interés</option>
         </select>
 
-        <input placeholder="Capital" value={capital} onChange={(e) => setCapital(e.target.value)} />
+        <input
+          placeholder="Capital"
+          value={capital}
+          onChange={(e) => setCapital(e.target.value)}
+        />
+
+        {/* Cálculo en vivo */}
+        <div>
+          Total estimado: $
+          {tipo === "gota"
+            ? Number(capital || 0) + Number(utilidad || 0)
+            : Number(capital || 0) +
+              Number(capital || 0) * (Number(interes || 0) / 100)}
+        </div>
 
         {tipo === "gota" ? (
           <>
-            <input placeholder="Utilidad" value={utilidad} onChange={(e) => setUtilidad(e.target.value)} />
-            <input placeholder="Días" value={dias} onChange={(e) => setDias(e.target.value)} />
+            <input
+              placeholder="Utilidad"
+              value={utilidad}
+              onChange={(e) => setUtilidad(e.target.value)}
+            />
+            <input
+              placeholder="Días"
+              value={dias}
+              onChange={(e) => setDias(e.target.value)}
+            />
           </>
         ) : (
           <>
-            <input placeholder="Interés %" value={interes} onChange={(e) => setInteres(e.target.value)} />
-            <input placeholder="Número de pagos" value={numeroPagos} onChange={(e) => setNumeroPagos(e.target.value)} />
+            <input
+              placeholder="Interés %"
+              value={interes}
+              onChange={(e) => setInteres(e.target.value)}
+            />
+            <input
+              placeholder="Número de pagos"
+              value={numeroPagos}
+              onChange={(e) => setNumeroPagos(e.target.value)}
+            />
           </>
         )}
 
@@ -195,17 +226,44 @@ export default function Page() {
 
       <hr />
 
-      <h2>Listado</h2>
+      <h2>Listado de préstamos</h2>
 
-      {prestamos.map((p) => (
-        <div key={p.id} style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}>
-          <strong>{p.clienteNombre}</strong>
-          <div>Tipo: {p.tipo}</div>
-          <div>Total: ${p.total}</div>
-          <div>Saldo: ${p.saldo}</div>
-          <button onClick={() => eliminar(p.id)}>Eliminar</button>
-        </div>
-      ))}
+      {prestamos.length === 0 ? (
+        <p>No hay préstamos registrados.</p>
+      ) : (
+        prestamos.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              border: "1px solid #ccc",
+              padding: 10,
+              marginBottom: 10,
+            }}
+          >
+            <strong>{p.clienteNombre}</strong>
+            <div>Tipo: {p.tipo === "gota" ? "Gota a gota" : "Cuotas + interés"}</div>
+            <div>Capital: ${p.capital}</div>
+            <div>Total: ${p.total}</div>
+            <div>Saldo: ${p.saldo}</div>
+
+            {p.tipo === "gota" ? (
+              <>
+                <div>Utilidad: ${p.utilidad}</div>
+                <div>Días: {p.dias}</div>
+              </>
+            ) : (
+              <>
+                <div>Interés: {p.interes}%</div>
+                <div>Número de pagos: {p.numeroPagos}</div>
+              </>
+            )}
+
+            <button onClick={() => eliminar(p.id)} style={{ marginTop: 10 }}>
+              Eliminar
+            </button>
+          </div>
+        ))
+      )}
     </main>
   );
 }
