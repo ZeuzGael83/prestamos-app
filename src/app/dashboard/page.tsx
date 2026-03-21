@@ -297,6 +297,10 @@ export default function DashboardPage() {
             onClick={() => (window.location.href = "/pagos")}
           />
           <ActionButton
+            label="Modo cobrador"
+            onClick={() => (window.location.href = "/cobrador")}
+          />
+          <ActionButton
             label="Cerrar sesión"
             onClick={() => {
               localStorage.removeItem("auth");
