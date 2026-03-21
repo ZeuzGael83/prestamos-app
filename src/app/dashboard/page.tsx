@@ -69,6 +69,8 @@ export default function DashboardPage() {
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   };
 
+  const hoyTexto = new Date().toLocaleDateString();
+
   const kpis = useMemo(() => {
     const clientesRegistrados = clientes.length;
 
@@ -151,6 +153,46 @@ export default function DashboardPage() {
 
     const pagosRegistrados = pagos.length;
 
+    const cobradoHoy = pagos
+      .filter((p) => p.fecha === hoyTexto)
+      .reduce((acc, p) => acc + (p.monto || 0), 0);
+
+    const ultimoPagoRegistrado =
+      pagos.length > 0
+        ? [...pagos].sort(
+            (a, b) => parseFecha(b.fecha).getTime() - parseFecha(a.fecha).getTime()
+          )[0]
+        : null;
+
+    const topMorosos = prestamos
+      .map((p) => {
+        const saldo =
+          typeof p.saldo === "number"
+            ? p.saldo
+            : typeof p.saldoPendiente === "number"
+            ? p.saldoPendiente
+            : typeof p.total === "number"
+            ? p.total
+            : typeof p.totalPagar === "number"
+            ? p.totalPagar
+            : 0;
+
+        const dias = diasSinPagar(p.id);
+
+        return {
+          id: p.id,
+          clienteNombre: p.clienteNombre,
+          saldo,
+          dias: dias ?? 0,
+        };
+      })
+      .filter((p) => p.saldo > 0 && p.dias > 3)
+      .sort((a, b) => {
+        if (b.dias !== a.dias) return b.dias - a.dias;
+        return b.saldo - a.saldo;
+      })
+      .slice(0, 3);
+
     return {
       clientesRegistrados,
       prestamosActivos,
@@ -160,8 +202,11 @@ export default function DashboardPage() {
       morosos,
       alCorriente,
       pagosRegistrados,
+      cobradoHoy,
+      ultimoPagoRegistrado,
+      topMorosos,
     };
-  }, [clientes, prestamos, pagos]);
+  }, [clientes, prestamos, pagos, hoyTexto]);
 
   return (
     <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
@@ -186,6 +231,7 @@ export default function DashboardPage() {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: 12,
+          marginBottom: 24,
         }}
       >
         <Card titulo="Clientes registrados" valor={String(kpis.clientesRegistrados)} />
@@ -196,6 +242,46 @@ export default function DashboardPage() {
         <Card titulo="Morosos" valor={String(kpis.morosos)} />
         <Card titulo="Al corriente" valor={String(kpis.alCorriente)} />
         <Card titulo="Pagos registrados" valor={String(kpis.pagosRegistrados)} />
+      </div>
+
+      <h2>Resumen ejecutivo</h2>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        <Box titulo="Cobrado hoy">
+          <strong style={{ fontSize: 28 }}>${kpis.cobradoHoy.toFixed(2)}</strong>
+        </Box>
+
+        <Box titulo="Último pago registrado">
+          {kpis.ultimoPagoRegistrado ? (
+            <>
+              <div><strong>Monto:</strong> ${kpis.ultimoPagoRegistrado.monto}</div>
+              <div><strong>Fecha:</strong> {kpis.ultimoPagoRegistrado.fecha}</div>
+            </>
+          ) : (
+            <div>No hay pagos registrados.</div>
+          )}
+        </Box>
+
+        <Box titulo="Top 3 morosos">
+          {kpis.topMorosos.length > 0 ? (
+            kpis.topMorosos.map((m, i) => (
+              <div key={m.id} style={{ marginBottom: 8 }}>
+                <div><strong>{i + 1}. {m.clienteNombre}</strong></div>
+                <div>Saldo: ${m.saldo}</div>
+                <div>Días sin pagar: {m.dias}</div>
+              </div>
+            ))
+          ) : (
+            <div>No hay morosos.</div>
+          )}
+        </Box>
       </div>
     </main>
   );
@@ -213,6 +299,28 @@ function Card({ titulo, valor }: { titulo: string; valor: string }) {
     >
       <div style={{ fontSize: 13, color: "#555", marginBottom: 8 }}>{titulo}</div>
       <div style={{ fontSize: 24, fontWeight: 700 }}>{valor}</div>
+    </div>
+  );
+}
+
+function Box({
+  titulo,
+  children,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        border: "1px solid #ccc",
+        padding: 14,
+        borderRadius: 10,
+        background: "white",
+      }}
+    >
+      <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{titulo}</div>
+      {children}
     </div>
   );
 }
