@@ -2,43 +2,95 @@
 
 import { useEffect, useState } from "react";
 
-type Prestamo = {
-  id: string;
-  clienteId?: string;
-  clienteNombre: string;
-  saldo: number;
-  total: number;
-  fecha?: string;
-};
-
-type Cliente = {
-  id: string;
-  nombre: string;
-  telefono: string;
-  ubicacion?: string;
-};
-
 export default function CobradorPage() {
-  const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [prestamos, setPrestamos] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [pagos, setPagos] = useState<any[]>([]);
   const [prestamoId, setPrestamoId] = useState("");
   const [monto, setMonto] = useState("");
 
   useEffect(() => {
-    const prestamosData = JSON.parse(localStorage.getItem("prestamos") || "[]");
-    const clientesData = JSON.parse(localStorage.getItem("clientes") || "[]");
-
-    setPrestamos(prestamosData);
-    setClientes(clientesData);
+    setPrestamos(JSON.parse(localStorage.getItem("prestamos") || "[]"));
+    setClientes(JSON.parse(localStorage.getItem("clientes") || "[]"));
+    setPagos(JSON.parse(localStorage.getItem("pagos") || "[]"));
   }, []);
 
-  // 🔴 FILTRO: SOLO MOROSOS
-  const morosos = prestamos.filter((p) => p.saldo > 0);
+  const parseFecha = (f: string) => {
+    const [d, m, y] = f.split("/");
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  };
+
+  const ultimoPago = (id: string) => {
+    const lista = pagos.filter((p) => p.prestamoId === id);
+    if (!lista.length) return null;
+
+    return lista.sort(
+      (a, b) => parseFecha(b.fecha).getTime() - parseFecha(a.fecha).getTime()
+    )[0];
+  };
+
+  const diasSinPagar = (id: string) => {
+    const u = ultimoPago(id);
+    if (!u) return 999;
+
+    const diff = new Date().getTime() - parseFecha(u.fecha).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  };
+
+  // 🔥 ORDEN INTELIGENTE
+  const morosos = prestamos
+    .filter((p) => p.saldo > 0)
+    .map((p) => ({
+      ...p,
+      dias: diasSinPagar(p.id),
+    }))
+    .sort((a, b) => {
+      if (b.dias !== a.dias) return b.dias - a.dias;
+      return b.saldo - a.saldo;
+    });
+
+  const clienteInfo = (p: any) =>
+    clientes.find(
+      (c) => c.id === p.clienteId || c.nombre === p.clienteNombre
+    );
+
+  // 🔥 MENSAJE INTELIGENTE
+  const mensaje = (nombre: string, saldo: number, dias: number) => {
+    if (dias > 7) {
+      return `⚠️ ${nombre}, tienes un atraso de ${dias} días. Tu saldo es $${saldo}. Es necesario realizar tu pago hoy.`;
+    }
+    if (dias > 3) {
+      return `Hola ${nombre}, tienes ${dias} días de atraso. Tu saldo es $${saldo}. Te pedimos regularizar tu pago.`;
+    }
+    return `Hola ${nombre}, tu saldo pendiente es $${saldo}. Te recordamos realizar tu pago.`;
+  };
+
+  const enviarWhatsApp = (p: any) => {
+    const cliente = clienteInfo(p);
+    if (!cliente?.telefono) return;
+
+    const numero = "52" + cliente.telefono.replace(/\D/g, "");
+
+    window.open(
+      `https://wa.me/${numero}?text=${encodeURIComponent(
+        mensaje(p.clienteNombre, p.saldo, p.dias)
+      )}`
+    );
+  };
+
+  const abrirMaps = (p: any) => {
+    const cliente = clienteInfo(p);
+    if (!cliente?.ubicacion) return;
+
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        cliente.ubicacion
+      )}`
+    );
+  };
 
   const registrarPago = () => {
     if (!prestamoId || !monto) return;
-
-    const pagos = JSON.parse(localStorage.getItem("pagos") || "[]");
 
     const prestamo = prestamos.find((p) => p.id === prestamoId);
     if (!prestamo) return;
@@ -47,10 +99,8 @@ export default function CobradorPage() {
 
     const nuevoPago = {
       prestamoId,
-      clienteNombre: prestamo.clienteNombre,
       monto: Number(monto),
       fecha: new Date().toLocaleDateString(),
-      saldoRestante: nuevoSaldo,
     };
 
     const nuevosPagos = [nuevoPago, ...pagos];
@@ -63,82 +113,34 @@ export default function CobradorPage() {
     );
 
     localStorage.setItem("prestamos", JSON.stringify(nuevosPrestamos));
-    setPrestamos(nuevosPrestamos);
 
-    alert("Pago registrado");
+    setPagos(nuevosPagos);
+    setPrestamos(nuevosPrestamos);
 
     setMonto("");
     setPrestamoId("");
   };
 
-  const enviarWhatsApp = (nombre: string, telefono: string, saldo: number) => {
-    const numero = "52" + telefono.replace(/\D/g, "");
-
-    const mensaje = `Hola ${nombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
-
-    window.open(
-      `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`,
-      "_blank"
-    );
-  };
-
-  const abrirMaps = (ubicacion?: string) => {
-    if (!ubicacion) return;
-
-    if (ubicacion.startsWith("http")) {
-      window.open(ubicacion, "_blank");
-    } else {
-      window.open(
-        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          ubicacion
-        )}`,
-        "_blank"
-      );
-    }
+  const colorEstado = (dias: number) => {
+    if (dias > 7) return "#fecaca"; // rojo
+    if (dias > 3) return "#fde68a"; // amarillo
+    return "#dcfce7"; // verde
   };
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 16,
-        background: "#eef2ff",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      {/* HEADER */}
-      <section
-        style={{
-          background: "linear-gradient(135deg, #7f1d1d, #dc2626)",
-          color: "white",
-          borderRadius: 24,
-          padding: 20,
-          marginBottom: 16,
-        }}
-      >
-        <h1 style={{ fontSize: 32, fontWeight: 800 }}>
-          Modo cobrador
-        </h1>
-        <p>Prioriza morosos y cobra más rápido</p>
-      </section>
+    <main style={{ padding: 16, background: "#eef2ff" }}>
+      <h1 style={{ fontSize: 28, fontWeight: 800 }}>
+        🚀 Modo Cobrador PRO
+      </h1>
 
       {/* PAGO RÁPIDO */}
-      <section
-        style={{
-          background: "white",
-          padding: 16,
-          borderRadius: 20,
-          marginBottom: 16,
-        }}
-      >
-        <h3>Pago rápido</h3>
-
+      <div style={{ background: "white", padding: 16, borderRadius: 12 }}>
         <select
           value={prestamoId}
           onChange={(e) => setPrestamoId(e.target.value)}
-          style={inputStyle}
+          style={{ width: "100%", padding: 10, marginBottom: 10 }}
         >
-          <option value="">Selecciona cliente</option>
+          <option value="">Selecciona</option>
           {morosos.map((p) => (
             <option key={p.id} value={p.id}>
               {p.clienteNombre} - ${p.saldo}
@@ -150,116 +152,55 @@ export default function CobradorPage() {
           placeholder="Monto"
           value={monto}
           onChange={(e) => setMonto(e.target.value)}
-          style={inputStyle}
+          style={{ width: "100%", padding: 10 }}
         />
 
-        <button onClick={registrarPago} style={botonVerde}>
+        <button
+          onClick={registrarPago}
+          style={{
+            marginTop: 10,
+            background: "#16a34a",
+            color: "white",
+            padding: 12,
+            width: "100%",
+            borderRadius: 10,
+          }}
+        >
           Registrar pago
         </button>
-      </section>
+      </div>
 
-      {/* LISTADO MOROSOS */}
-      <section>
-        <h2>Morosos</h2>
+      {/* LISTA */}
+      <div style={{ marginTop: 20 }}>
+        {morosos.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              background: colorEstado(p.dias),
+              padding: 14,
+              borderRadius: 12,
+              marginBottom: 10,
+            }}
+          >
+            <strong>{p.clienteNombre}</strong>
+            <div>Saldo: ${p.saldo}</div>
+            <div>Días: {p.dias}</div>
 
-        <div style={{ display: "grid", gap: 12 }}>
-          {morosos.map((p) => {
-            const cliente = clientes.find(
-              (c) =>
-                c.id === p.clienteId ||
-                c.nombre === p.clienteNombre
-            );
-
-            return (
-              <div key={p.id} style={cardRoja}>
-                <div style={{ fontWeight: 800, fontSize: 18 }}>
-                  {p.clienteNombre}
-                </div>
-
-                <div>Saldo: ${p.saldo}</div>
-
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button
-                    onClick={() =>
-                      enviarWhatsApp(
-                        p.clienteNombre,
-                        cliente?.telefono || "",
-                        p.saldo
-                      )
-                    }
-                    style={botonWhatsapp}
-                  >
-                    WhatsApp
-                  </button>
-
-                  <button
-                    onClick={() => abrirMaps(cliente?.ubicacion)}
-                    style={botonMaps}
-                  >
-                    Maps
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setPrestamoId(p.id);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    style={botonAzul}
-                  >
-                    Cobrar
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+            <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+              <button onClick={() => enviarWhatsApp(p)}>WhatsApp</button>
+              <button onClick={() => abrirMaps(p)}>Maps</button>
+              <button
+                onClick={() => {
+                  setPrestamoId(p.id);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Cobrar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
-
-/* estilos */
-const inputStyle = {
-  width: "100%",
-  padding: 12,
-  marginBottom: 10,
-  borderRadius: 10,
-  border: "1px solid #ccc",
-};
-
-const botonVerde = {
-  background: "#16a34a",
-  color: "white",
-  padding: 12,
-  borderRadius: 10,
-  width: "100%",
-  fontWeight: 700,
-};
-
-const botonWhatsapp = {
-  background: "#16a34a",
-  color: "white",
-  padding: 10,
-  borderRadius: 8,
-};
-
-const botonMaps = {
-  background: "#1d4ed8",
-  color: "white",
-  padding: 10,
-  borderRadius: 8,
-};
-
-const botonAzul = {
-  background: "#0f172a",
-  color: "white",
-  padding: 10,
-  borderRadius: 8,
-};
-
-const cardRoja = {
-  background: "#fee2e2",
-  border: "1px solid #fecaca",
-  padding: 14,
-  borderRadius: 14,
-};
