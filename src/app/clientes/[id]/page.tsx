@@ -7,6 +7,7 @@ type Cliente = {
   nombre: string;
   telefono: string;
   direccion: string;
+  ubicacion?: string;
 };
 
 type Prestamo = {
@@ -86,6 +87,25 @@ export default function ClienteDetalle({ params }: any) {
     mensaje
   )}`;
 
+  const abrirMaps = () => {
+    if (!cliente.ubicacion) {
+      alert("Este cliente no tiene ubicación registrada.");
+      return;
+    }
+
+    const valor = cliente.ubicacion.trim();
+
+    if (valor.startsWith("http")) {
+      window.open(valor, "_blank");
+      return;
+    }
+
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      valor
+    )}`;
+    window.open(url, "_blank");
+  };
+
   return (
     <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
       <h1>Ficha del cliente</h1>
@@ -101,6 +121,10 @@ export default function ClienteDetalle({ params }: any) {
         >
           WhatsApp
         </button>
+
+        <button onClick={abrirMaps}>
+          Abrir en Maps
+        </button>
       </div>
 
       <section
@@ -114,6 +138,7 @@ export default function ClienteDetalle({ params }: any) {
         <div><strong>Nombre:</strong> {cliente.nombre}</div>
         <div><strong>Teléfono:</strong> {cliente.telefono}</div>
         <div><strong>Dirección:</strong> {cliente.direccion}</div>
+        <div><strong>Ubicación:</strong> {cliente.ubicacion || "No registrada"}</div>
         <div><strong>Total pendiente:</strong> ${totalPendiente}</div>
       </section>
 
