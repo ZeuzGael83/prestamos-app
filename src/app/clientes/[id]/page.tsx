@@ -1,207 +1,186 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 
-type Cliente = {
-  id: string;
-  nombre: string;
-  telefono: string;
-  direccion: string;
-  ubicacion?: string;
-};
+export default function ClienteDetalle() {
+  const router = useRouter();
+  const params = useParams();
 
-type Prestamo = {
-  id: string;
-  clienteId?: string;
-  clienteNombre: string;
-  total?: number;
-  totalPagar?: number;
-  saldo?: number;
-  saldoPendiente?: number;
-};
-
-type Pago = {
-  prestamoId: string;
-  monto: number;
-  fecha: string;
-};
-
-export default function ClienteDetalle({ params }: any) {
-  const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
-  const [pagos, setPagos] = useState<Pago[]>([]);
+  const [cliente, setCliente] = useState<any>(null);
+  const [prestamos, setPrestamos] = useState<any[]>([]);
+  const [pagos, setPagos] = useState<any[]>([]);
 
   useEffect(() => {
-    try {
-      const clientesData = JSON.parse(localStorage.getItem("clientes") || "[]");
-      const prestamosData = JSON.parse(localStorage.getItem("prestamos") || "[]");
-      const pagosData = JSON.parse(localStorage.getItem("pagos") || "[]");
+    const clientes = JSON.parse(localStorage.getItem("clientes") || "[]");
+    const clienteEncontrado = clientes.find((c: any) => c.id === params.id);
 
-      const clienteEncontrado = clientesData.find(
-        (c: Cliente) => c.id === params.id
-      );
-
-      setCliente(clienteEncontrado || null);
-
-      const prestamosCliente = prestamosData.filter((p: Prestamo) => {
-        if (p.clienteId) return p.clienteId === params.id;
-        return (
-          clienteEncontrado &&
-          p.clienteNombre?.trim().toLowerCase() ===
-            clienteEncontrado.nombre.trim().toLowerCase()
-        );
-      });
-
-      setPrestamos(prestamosCliente);
-      setPagos(Array.isArray(pagosData) ? pagosData : []);
-    } catch (e) {
-      console.log("Error cargando detalle del cliente", e);
+    if (!clienteEncontrado) {
+      router.push("/clientes");
+      return;
     }
+
+    setCliente(clienteEncontrado);
+
+    const prestamosGuardados = JSON.parse(localStorage.getItem("prestamos") || "[]");
+    const pagosGuardados = JSON.parse(localStorage.getItem("pagos") || "[]");
+
+    const prestamosCliente = prestamosGuardados.filter(
+      (p: any) => p.clienteId === clienteEncontrado.id
+    );
+
+    const pagosCliente = pagosGuardados.filter(
+      (p: any) => p.clienteId === clienteEncontrado.id
+    );
+
+    setPrestamos(prestamosCliente);
+    setPagos(pagosCliente);
   }, [params.id]);
 
-  if (!cliente) {
-    return <main style={{ padding: 20 }}>Cliente no encontrado.</main>;
-  }
+  // 📂 GUARDAR DOCUMENTO
+  const guardarDocumento = (tipo: string, file: File) => {
+    const reader = new FileReader();
 
-  const totalPendiente = prestamos.reduce((acc, p) => {
-    const totalBase =
-      typeof p.total === "number"
-        ? p.total
-        : typeof p.totalPagar === "number"
-        ? p.totalPagar
-        : 0;
+    reader.onloadend = () => {
+      const base64 = reader.result;
 
-    const saldo =
-      typeof p.saldo === "number"
-        ? p.saldo
-        : typeof p.saldoPendiente === "number"
-        ? p.saldoPendiente
-        : totalBase;
+      const expedientes = JSON.parse(localStorage.getItem("expedientes") || "{}");
 
-    return acc + saldo;
-  }, 0);
+      if (!expedientes[cliente.id]) {
+        expedientes[cliente.id] = {};
+      }
 
-  const telefonoWhatsapp = `52${cliente.telefono}`;
-  const mensaje = `Hola ${cliente.nombre}, tu saldo pendiente total es de $${totalPendiente}.`;
-  const urlWhatsapp = `https://wa.me/${telefonoWhatsapp}?text=${encodeURIComponent(
-    mensaje
-  )}`;
+      expedientes[cliente.id][tipo] = base64;
 
-  const abrirMaps = () => {
-    if (!cliente.ubicacion) {
-      alert("Este cliente no tiene ubicación registrada.");
-      return;
-    }
+      localStorage.setItem("expedientes", JSON.stringify(expedientes));
 
-    const valor = cliente.ubicacion.trim();
+      alert("Documento guardado");
+      window.location.reload();
+    };
 
-    if (valor.startsWith("http")) {
-      window.open(valor, "_blank");
-      return;
-    }
-
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      valor
-    )}`;
-    window.open(url, "_blank");
+    reader.readAsDataURL(file);
   };
 
+  // 📂 OBTENER DOCUMENTO
+  const obtenerDocumento = (tipo: string) => {
+    const expedientes = JSON.parse(localStorage.getItem("expedientes") || "{}");
+    return expedientes[cliente?.id]?.[tipo];
+  };
+
+  // 📱 WHATSAPP
+  const enviarWhatsApp = () => {
+    if (!cliente?.telefono) return;
+
+    const numero = "52" + cliente.telefono.replace(/\D/g, "");
+    const mensaje = `Hola ${cliente.nombre}, tienes un saldo pendiente de $${totalPendiente}. Por favor realiza tu pago hoy.`;
+
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`);
+  };
+
+  // 📍 MAPS
+  const abrirMaps = () => {
+    if (!cliente?.ubicacion) return;
+    window.open(cliente.ubicacion, "_blank");
+  };
+
+  if (!cliente) return <div>Cargando...</div>;
+
+  const totalPrestamos = prestamos.reduce((acc, p) => acc + p.total, 0);
+  const totalPagado = pagos.reduce((acc, p) => acc + p.monto, 0);
+  const totalPendiente = totalPrestamos - totalPagado;
+
   return (
-    <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
+    <div style={{ padding: 20 }}>
       <h1>Ficha del cliente</h1>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-        <button onClick={() => (window.location.href = "/clientes")}>
-          ← Volver a clientes
-        </button>
+      <button onClick={() => router.push("/clientes")}>
+        ← Volver a clientes
+      </button>
 
-        <button
-          onClick={() => window.open(urlWhatsapp, "_blank")}
-          style={{ background: "green", color: "white" }}
-        >
-          WhatsApp
-        </button>
+      <button onClick={enviarWhatsApp} style={{ marginLeft: 10 }}>
+        WhatsApp
+      </button>
 
-        <button onClick={abrirMaps}>
+      {cliente.ubicacion && (
+        <button onClick={abrirMaps} style={{ marginLeft: 10 }}>
           Abrir en Maps
         </button>
+      )}
+
+      <div style={{ marginTop: 20 }}>
+        <p><strong>Nombre:</strong> {cliente.nombre}</p>
+        <p><strong>Teléfono:</strong> {cliente.telefono}</p>
+        <p><strong>Dirección:</strong> {cliente.direccion}</p>
+        <p><strong>Total pendiente:</strong> ${totalPendiente}</p>
       </div>
 
-      <section
-        style={{
-          border: "1px solid #ccc",
-          padding: 12,
-          marginBottom: 20,
-          maxWidth: 600,
-        }}
-      >
-        <div><strong>Nombre:</strong> {cliente.nombre}</div>
-        <div><strong>Teléfono:</strong> {cliente.telefono}</div>
-        <div><strong>Dirección:</strong> {cliente.direccion}</div>
-        <div><strong>Ubicación:</strong> {cliente.ubicacion || "No registrada"}</div>
-        <div><strong>Total pendiente:</strong> ${totalPendiente}</div>
-      </section>
+      {/* 📂 EXPEDIENTE DIGITAL */}
+      <h2>Expediente digital</h2>
 
+      <div>
+        <p>INE Frente</p>
+        <input
+          type="file"
+          onChange={(e) => {
+            if (e.target.files?.[0]) {
+              guardarDocumento("ineFrente", e.target.files[0]);
+            }
+          }}
+        />
+        {obtenerDocumento("ineFrente") && (
+          <img src={obtenerDocumento("ineFrente")} width={200} />
+        )}
+      </div>
+
+      <div>
+        <p>INE Reverso</p>
+        <input
+          type="file"
+          onChange={(e) => {
+            if (e.target.files?.[0]) {
+              guardarDocumento("ineReverso", e.target.files[0]);
+            }
+          }}
+        />
+        {obtenerDocumento("ineReverso") && (
+          <img src={obtenerDocumento("ineReverso")} width={200} />
+        )}
+      </div>
+
+      <div>
+        <p>Comprobante domicilio</p>
+        <input
+          type="file"
+          onChange={(e) => {
+            if (e.target.files?.[0]) {
+              guardarDocumento("domicilio", e.target.files[0]);
+            }
+          }}
+        />
+        {obtenerDocumento("domicilio") && (
+          <img src={obtenerDocumento("domicilio")} width={200} />
+        )}
+      </div>
+
+      {/* 💰 PRÉSTAMOS */}
       <h2>Préstamos del cliente</h2>
 
-      {prestamos.length === 0 ? (
-        <p>No hay préstamos asociados.</p>
-      ) : (
-        prestamos.map((prestamo) => {
-          const totalBase =
-            typeof prestamo.total === "number"
-              ? prestamo.total
-              : typeof prestamo.totalPagar === "number"
-              ? prestamo.totalPagar
-              : 0;
+      {prestamos.map((p, i) => (
+        <div key={i} style={{ border: "1px solid #ccc", marginBottom: 10 }}>
+          <p>Total: ${p.total}</p>
+          <p>Saldo: ${p.saldo}</p>
+        </div>
+      ))}
 
-          const saldo =
-            typeof prestamo.saldo === "number"
-              ? prestamo.saldo
-              : typeof prestamo.saldoPendiente === "number"
-              ? prestamo.saldoPendiente
-              : totalBase;
+      {/* 🧾 HISTORIAL */}
+      <h3>Historial de pagos</h3>
 
-          const pagosPrestamo = pagos.filter(
-            (pago) => pago.prestamoId === prestamo.id
-          );
-
-          return (
-            <div
-              key={prestamo.id}
-              style={{
-                border: "1px solid #ccc",
-                padding: 12,
-                marginBottom: 16,
-                maxWidth: 650,
-              }}
-            >
-              <div><strong>Total:</strong> ${totalBase}</div>
-              <div><strong>Saldo:</strong> ${saldo}</div>
-
-              <h3 style={{ marginTop: 16 }}>Historial de pagos</h3>
-
-              {pagosPrestamo.length === 0 ? (
-                <p>No hay pagos registrados para este préstamo.</p>
-              ) : (
-                pagosPrestamo.map((pago, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      borderTop: "1px solid #eee",
-                      paddingTop: 8,
-                      marginTop: 8,
-                    }}
-                  >
-                    <div>Monto: ${pago.monto}</div>
-                    <div>Fecha: {pago.fecha}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          );
-        })
-      )}
-    </main>
+      {pagos.map((p, i) => (
+        <div key={i}>
+          <p>Monto: ${p.monto}</p>
+          <p>Fecha: {p.fecha}</p>
+        </div>
+      ))}
+    </div>
   );
 }
