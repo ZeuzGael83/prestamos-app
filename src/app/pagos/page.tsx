@@ -288,6 +288,7 @@ Gracias por su pago.`;
           <HeaderButton label="Dashboard" onClick={() => (window.location.href = "/dashboard")} primary />
           <HeaderButton label="Clientes" onClick={() => (window.location.href = "/clientes")} />
           <HeaderButton label="Préstamos" onClick={() => (window.location.href = "/prestamos")} />
+          <HeaderButton label="Modo cobrador" onClick={() => (window.location.href = "/cobrador")} />
         </div>
       </section>
 
@@ -397,13 +398,37 @@ Gracias por su pago.`;
                 <div
                   key={p.id}
                   style={{
-                    background: "white",
+                    background:
+                      estado === "moroso"
+                        ? "#fff1f2"
+                        : estado === "corriente"
+                        ? "#f0fdf4"
+                        : estado === "liquidado"
+                        ? "#eff6ff"
+                        : "#ffffff",
                     border: "1px solid #dbe4f0",
                     borderRadius: 22,
                     padding: 16,
                     boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
                   }}
                 >
+                  {estado === "moroso" && (
+                    <div
+                      style={{
+                        background: "#b91c1c",
+                        color: "white",
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        display: "inline-block",
+                        marginBottom: 8,
+                      }}
+                    >
+                      PRIORIDAD DE COBRO
+                    </div>
+                  )}
+
                   <div
                     style={{
                       fontSize: 22,
@@ -456,6 +481,25 @@ Gracias por su pago.`;
                     }}
                   >
                     Cobrar por WhatsApp
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setPrestamoId(p.id);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    style={{
+                      marginTop: 8,
+                      background: "#1d4ed8",
+                      color: "white",
+                      border: "none",
+                      padding: "10px",
+                      borderRadius: 10,
+                      fontWeight: 700,
+                      width: "100%",
+                    }}
+                  >
+                    Registrar pago rápido
                   </button>
                 </div>
               );
