@@ -31,211 +31,150 @@ type Pago = {
 export default function PagosPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
+  const [pagos, setPagos] = useState<Pago[]>([]);
   const [monto, setMonto] = useState("");
   const [prestamoId, setPrestamoId] = useState("");
+
+  // 🔥 FILTRO
+  const [filtro, setFiltro] = useState<"todos" | "morosos" | "corriente">("todos");
 
   useEffect(() => {
     try {
       const clientesData = localStorage.getItem("clientes");
-      if (clientesData) {
-        const listaClientes = JSON.parse(clientesData);
-        if (Array.isArray(listaClientes)) setClientes(listaClientes);
-      }
+      if (clientesData) setClientes(JSON.parse(clientesData));
 
       const prestamosData = localStorage.getItem("prestamos");
-      if (prestamosData) {
-        const listaPrestamos = JSON.parse(prestamosData);
-        if (Array.isArray(listaPrestamos)) setPrestamos(listaPrestamos);
-      }
+      if (prestamosData) setPrestamos(JSON.parse(prestamosData));
+
+      const pagosData = localStorage.getItem("pagos");
+      if (pagosData) setPagos(JSON.parse(pagosData));
     } catch (e) {
       console.log("Error cargando datos", e);
     }
   }, []);
 
   const obtenerTelefonoCliente = (prestamo: Prestamo) => {
-    const porId = clientes.find(
-      (c) => prestamo.clienteId && c.id === prestamo.clienteId
-    );
-
-    if (porId?.telefono) return porId.telefono;
-
-    const porNombre = clientes.find(
+    const cliente = clientes.find(
       (c) =>
-        c.nombre.trim().toLowerCase() ===
-        prestamo.clienteNombre.trim().toLowerCase()
+        c.id === prestamo.clienteId ||
+        c.nombre.toLowerCase() === prestamo.clienteNombre.toLowerCase()
     );
-
-    return porNombre?.telefono || "";
+    return cliente?.telefono || "";
   };
 
   const normalizarTelefonoWhatsapp = (telefono: string) => {
     const digitos = telefono.replace(/\D/g, "");
-
-    if (!digitos) return "";
-
-    if (digitos.startsWith("52") && digitos.length === 12) {
-      return digitos;
-    }
-
-    if (digitos.length === 10) {
-      return `52${digitos}`;
-    }
-
+    if (digitos.length === 10) return `52${digitos}`;
     return digitos;
   };
 
   const generarFolio = () => {
     const ahora = new Date();
-    const yyyy = ahora.getFullYear();
-    const mm = String(ahora.getMonth() + 1).padStart(2, "0");
-    const dd = String(ahora.getDate()).padStart(2, "0");
-    const hh = String(ahora.getHours()).padStart(2, "0");
-    const mi = String(ahora.getMinutes()).padStart(2, "0");
-    const ss = String(ahora.getSeconds()).padStart(2, "0");
-
-    return `PG-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
+    return `PG-${ahora.getTime()}`;
   };
 
-  const abrirWhatsappConTicket = (
-    prestamo: Prestamo,
-    montoPagado: number,
-    saldoRestante: number,
-    folio: string
-  ) => {
-    const telefonoOriginal = obtenerTelefonoCliente(prestamo);
-    const telefono = normalizarTelefonoWhatsapp(telefonoOriginal);
+  const abrirWhatsappSaldo = (prestamo: Prestamo, saldo: number) => {
+    const telefono = normalizarTelefonoWhatsapp(
+      obtenerTelefonoCliente(prestamo)
+    );
 
-    if (!telefono) {
-      alert("Pago guardado, pero el cliente no tiene teléfono válido.");
-      return;
-    }
+    const mensaje = `Hola ${prestamo.clienteNombre}, tu saldo pendiente es de $${saldo}.`;
 
-    const fecha = new Date().toLocaleDateString();
-
-    const mensaje = `🧾 Ticket de pago
-Folio: ${folio}
-Cliente: ${prestamo.clienteNombre}
-Fecha: ${fecha}
-Monto pagado: $${montoPagado}
-Saldo restante: $${saldoRestante}
-
-Gracias por su pago.`;
-
-    const url = `https://wa.me/${telefono}?text=${encodeURIComponent(
-      mensaje
-    )}`;
-
-    window.open(url, "_blank");
+    window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`);
   };
 
   const guardarPago = () => {
     const montoNum = Number(monto);
 
-    if (!prestamoId || montoNum <= 0) {
-      alert("Datos inválidos");
-      return;
-    }
+    if (!prestamoId || montoNum <= 0) return;
 
-    const prestamoSeleccionado = prestamos.find((p) => p.id === prestamoId);
+    const prestamo = prestamos.find((p) => p.id === prestamoId);
+    if (!prestamo) return;
 
-    if (!prestamoSeleccionado) {
-      alert("Préstamo no encontrado");
-      return;
-    }
+    const saldoActual = prestamo.saldo ?? prestamo.total ?? 0;
+    const nuevoSaldo = saldoActual - montoNum;
 
-    const totalBase =
-      typeof prestamoSeleccionado.total === "number"
-        ? prestamoSeleccionado.total
-        : typeof prestamoSeleccionado.totalPagar === "number"
-        ? prestamoSeleccionado.totalPagar
-        : 0;
-
-    const saldoActual =
-      typeof prestamoSeleccionado.saldo === "number"
-        ? prestamoSeleccionado.saldo
-        : typeof prestamoSeleccionado.saldoPendiente === "number"
-        ? prestamoSeleccionado.saldoPendiente
-        : totalBase;
-
-    if (montoNum > saldoActual) {
-      alert("El pago no puede ser mayor al saldo pendiente");
-      return;
-    }
-
-    const nuevoSaldo = saldoActual - montoNum < 0 ? 0 : saldoActual - montoNum;
-
-    const nuevosPrestamos = prestamos.map((p) => {
-      if (p.id === prestamoId) {
-        return {
-          ...p,
-          saldo: nuevoSaldo,
-          saldoPendiente: nuevoSaldo,
-        };
-      }
-
-      return p;
-    });
-
-    const pagosGuardados = JSON.parse(localStorage.getItem("pagos") || "[]");
-    const folio = generarFolio();
-    const fecha = new Date().toLocaleDateString();
+    const nuevosPrestamos = prestamos.map((p) =>
+      p.id === prestamoId
+        ? { ...p, saldo: nuevoSaldo < 0 ? 0 : nuevoSaldo }
+        : p
+    );
 
     const nuevoPago: Pago = {
-      prestamoId: prestamoId,
-      clienteId: prestamoSeleccionado.clienteId,
-      clienteNombre: prestamoSeleccionado.clienteNombre,
+      prestamoId,
+      clienteNombre: prestamo.clienteNombre,
       monto: montoNum,
-      fecha,
-      folio,
+      fecha: new Date().toLocaleDateString(),
+      folio: generarFolio(),
       saldoRestante: nuevoSaldo,
     };
 
-    const nuevosPagos = [nuevoPago, ...pagosGuardados];
+    const nuevosPagos = [nuevoPago, ...pagos];
 
     localStorage.setItem("pagos", JSON.stringify(nuevosPagos));
-    setPrestamos(nuevosPrestamos);
     localStorage.setItem("prestamos", JSON.stringify(nuevosPrestamos));
+
+    setPagos(nuevosPagos);
+    setPrestamos(nuevosPrestamos);
 
     setMonto("");
     setPrestamoId("");
-
-    abrirWhatsappConTicket(
-      prestamoSeleccionado,
-      montoNum,
-      nuevoSaldo,
-      folio
-    );
   };
 
+  const parseFecha = (fecha: string) => {
+    const [d, m, y] = fecha.split("/");
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  };
+
+  const obtenerUltimoPago = (id: string) => {
+    const lista = pagos.filter((p) => p.prestamoId === id);
+    if (!lista.length) return null;
+    return lista.sort(
+      (a, b) => parseFecha(b.fecha).getTime() - parseFecha(a.fecha).getTime()
+    )[0];
+  };
+
+  const diasSinPagar = (id: string) => {
+    const ultimo = obtenerUltimoPago(id);
+    if (!ultimo) return null;
+    const diff = new Date().getTime() - parseFecha(ultimo.fecha).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const estadoPrestamo = (p: Prestamo, saldo: number) => {
+    if (saldo <= 0) return "liquidado";
+
+    const dias = diasSinPagar(p.id);
+    if (dias === null) return "sinpagos";
+
+    if (dias > 3) return "moroso";
+
+    return "corriente";
+  };
+
+  const prestamosFiltrados = prestamos.filter((p) => {
+    const saldo = p.saldo ?? p.total ?? 0;
+    const estado = estadoPrestamo(p, saldo);
+
+    if (filtro === "morosos") return estado === "moroso";
+    if (filtro === "corriente") return estado === "corriente";
+
+    return true;
+  });
+
   return (
-    <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
+    <main style={{ padding: 20 }}>
       <h1>Pagos</h1>
 
-      <h2>Registrar pago</h2>
+      <h3>Registrar pago</h3>
 
-      <select value={prestamoId} onChange={(e) => setPrestamoId(e.target.value)}>
-        <option value="">Selecciona préstamo</option>
-        {prestamos.map((p) => {
-          const totalBase =
-            typeof p.total === "number"
-              ? p.total
-              : typeof p.totalPagar === "number"
-              ? p.totalPagar
-              : 0;
-
-          const saldo =
-            typeof p.saldo === "number"
-              ? p.saldo
-              : typeof p.saldoPendiente === "number"
-              ? p.saldoPendiente
-              : totalBase;
-
-          return (
-            <option key={p.id} value={p.id}>
-              {p.clienteNombre} - ${saldo.toFixed(2)}
-            </option>
-          );
-        })}
+      <select onChange={(e) => setPrestamoId(e.target.value)}>
+        <option>Selecciona préstamo</option>
+        {prestamos.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.clienteNombre}
+          </option>
+        ))}
       </select>
 
       <input
@@ -244,47 +183,52 @@ Gracias por su pago.`;
         onChange={(e) => setMonto(e.target.value)}
       />
 
-      <button onClick={guardarPago}>Guardar pago</button>
+      <button onClick={guardarPago}>Guardar</button>
 
       <hr />
 
+      {/* 🔥 FILTROS */}
+      <div style={{ marginBottom: 15 }}>
+        <button onClick={() => setFiltro("todos")}>Todos</button>
+        <button onClick={() => setFiltro("morosos")}>Morosos</button>
+        <button onClick={() => setFiltro("corriente")}>Al corriente</button>
+      </div>
+
       <h2>Estado</h2>
 
-      {prestamos.map((p) => {
-        const totalBase =
-          typeof p.total === "number"
-            ? p.total
-            : typeof p.totalPagar === "number"
-            ? p.totalPagar
-            : 0;
-
-        const saldo =
-          typeof p.saldo === "number"
-            ? p.saldo
-            : typeof p.saldoPendiente === "number"
-            ? p.saldoPendiente
-            : totalBase;
+      {prestamosFiltrados.map((p) => {
+        const saldo = p.saldo ?? p.total ?? 0;
+        const estado = estadoPrestamo(p, saldo);
+        const dias = diasSinPagar(p.id);
 
         return (
-          <div
-            key={p.id}
-            style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}
-          >
-            <div>
-              <strong>{p.clienteNombre}</strong>
-            </div>
-            <div>Total: ${totalBase}</div>
+          <div key={p.id} style={{ border: "1px solid #ccc", padding: 10 }}>
+            <strong>{p.clienteNombre}</strong>
             <div>Saldo: ${saldo}</div>
 
+            <div style={{ marginTop: 5 }}>
+              {estado === "moroso" && (
+                <span style={{ color: "red" }}>
+                  ⚠️ MOROSO ({dias} días)
+                </span>
+              )}
+
+              {estado === "corriente" && (
+                <span style={{ color: "green" }}>
+                  ✅ Al corriente ({dias} días)
+                </span>
+              )}
+
+              {estado === "sinpagos" && (
+                <span>Sin pagos registrados</span>
+              )}
+
+              {estado === "liquidado" && <span>Liquidado</span>}
+            </div>
+
             <button
-              onClick={() =>
-                abrirWhatsappConTicket(p, 0, saldo, "CONSULTA-SALDO")
-              }
-              style={{
-                marginTop: 10,
-                background: "green",
-                color: "white",
-              }}
+              onClick={() => abrirWhatsappSaldo(p, saldo)}
+              style={{ marginTop: 10 }}
             >
               WhatsApp
             </button>
