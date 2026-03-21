@@ -31,6 +31,15 @@ type Pago = {
   saldoRestante?: number;
 };
 
+type ResultadoIA = {
+  score: number;
+  nivel: string;
+  color: string;
+  recomendacion: string;
+  montoFactor: number;
+  factores: string[];
+};
+
 export default function ClienteDetalle() {
   const router = useRouter();
   const params = useParams();
@@ -38,6 +47,7 @@ export default function ClienteDetalle() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [pagos, setPagos] = useState<Pago[]>([]);
+  const [resultadoIA, setResultadoIA] = useState<ResultadoIA | null>(null);
 
   useEffect(() => {
     const clientes = JSON.parse(localStorage.getItem("clientes") || "[]");
@@ -123,6 +133,111 @@ export default function ClienteDetalle() {
     );
   };
 
+  const parseFecha = (fecha: string) => {
+    const [d, m, y] = fecha.split("/");
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  };
+
+  const diasSinPagar = (prestamoId: string) => {
+    const pagosPrestamo = pagos.filter((p) => p.prestamoId === prestamoId);
+    if (!pagosPrestamo.length) return 999;
+
+    const ultimo = [...pagosPrestamo].sort(
+      (a, b) => parseFecha(b.fecha).getTime() - parseFecha(a.fecha).getTime()
+    )[0];
+
+    const diff = new Date().getTime() - parseFecha(ultimo.fecha).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const evaluarClienteIA = () => {
+    if (!cliente) return;
+
+    let score = 100;
+    const factores: string[] = [];
+
+    const diasArray = prestamos.map((p) => diasSinPagar(p.id) || 0);
+    const maxDias = Math.max(...diasArray, 0);
+
+    const totalPagos = pagos.length;
+    const totalPrestamosCliente = prestamos.length;
+    const saldoPendiente = prestamos.reduce((acc, p) => {
+      const saldo = p.saldo ?? p.saldoPendiente ?? p.total ?? p.totalPagar ?? 0;
+      return acc + saldo;
+    }, 0);
+
+    const expedienteCompleto =
+      !!obtenerDocumento("ineFrente") &&
+      !!obtenerDocumento("ineReverso") &&
+      !!obtenerDocumento("domicilio");
+
+    if (maxDias > 7) {
+      score -= 30;
+      factores.push("Atraso mayor a 7 días");
+    } else if (maxDias > 3) {
+      score -= 15;
+      factores.push("Atraso reciente");
+    }
+
+    if (totalPagos === 0) {
+      score -= 20;
+      factores.push("Sin historial de pagos");
+    }
+
+    if (saldoPendiente > 0) {
+      score -= 10;
+      factores.push("Saldo pendiente activo");
+    }
+
+    if (!expedienteCompleto) {
+      score -= 15;
+      factores.push("Expediente incompleto");
+    }
+
+    if (totalPagos > 5) {
+      score += 10;
+      factores.push("Buen historial de pagos");
+    }
+
+    if (totalPrestamosCliente > 1) {
+      score += 10;
+      factores.push("Cliente recurrente");
+    }
+
+    score = Math.max(0, Math.min(100, score));
+
+    let nivel = "";
+    let color = "";
+    let recomendacion = "";
+    let monto = 0;
+
+    if (score >= 75) {
+      nivel = "🟢 Cliente seguro";
+      color = "#dcfce7";
+      recomendacion = "Aprobado para nuevo préstamo";
+      monto = 1;
+    } else if (score >= 50) {
+      nivel = "🟡 Cliente con área de oportunidad";
+      color = "#fef9c3";
+      recomendacion = "Aprobar con monto moderado y seguimiento";
+      monto = 0.6;
+    } else {
+      nivel = "🔴 Cliente moroso / de riesgo";
+      color = "#fee2e2";
+      recomendacion = "No recomendable otorgar préstamo por ahora";
+      monto = 0;
+    }
+
+    setResultadoIA({
+      score,
+      nivel,
+      color,
+      recomendacion,
+      montoFactor: monto,
+      factores,
+    });
+  };
+
   if (!cliente) return <div style={{ padding: 20 }}>Cargando...</div>;
 
   const totalPrestamos = prestamos.reduce((acc, p) => {
@@ -192,13 +307,14 @@ export default function ClienteDetalle() {
             lineHeight: 1.5,
           }}
         >
-          Consulta datos, expediente digital, ubicación, préstamos y pagos en una sola vista.
+          Consulta datos, expediente digital, ubicación, préstamos, pagos y evaluación inteligente.
         </p>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <HeaderButton label="Volver a clientes" onClick={() => router.push("/clientes")} primary />
           <HeaderButton label="WhatsApp" onClick={enviarWhatsApp} />
           <HeaderButton label="Abrir en Maps" onClick={abrirMaps} />
+          <HeaderButton label="🤖 Evaluación IA" onClick={evaluarClienteIA} />
         </div>
       </section>
 
@@ -265,6 +381,53 @@ export default function ClienteDetalle() {
           <MetricBox label="Pendiente" value={`$${totalPendiente}`} />
         </div>
       </section>
+
+      {resultadoIA && (
+        <section
+          style={{
+            background: resultadoIA.color,
+            border: "1px solid rgba(0,0,0,0.06)",
+            borderRadius: 22,
+            padding: 16,
+            marginBottom: 16,
+            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 22,
+              fontWeight: 800,
+              marginBottom: 12,
+              color: "#0f172a",
+            }}
+          >
+            🤖 Evaluación IA
+          </div>
+
+          <div style={{ display: "grid", gap: 8, color: "#334155", marginBottom: 10 }}>
+            <div><strong>Score:</strong> {resultadoIA.score}/100</div>
+            <div><strong>Estado:</strong> {resultadoIA.nivel}</div>
+            <div><strong>Recomendación:</strong> {resultadoIA.recomendacion}</div>
+            <div>
+              <strong>Monto sugerido:</strong>{" "}
+              {resultadoIA.montoFactor === 0
+                ? "No recomendable"
+                : `${Math.round(resultadoIA.montoFactor * 100)}% del monto habitual`}
+            </div>
+          </div>
+
+          <div>
+            <strong style={{ color: "#0f172a" }}>Factores:</strong>
+            <ul style={{ marginTop: 8, paddingLeft: 18, color: "#334155" }}>
+              {resultadoIA.factores.map((f, i) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       <section
         style={{
