@@ -7,6 +7,7 @@ type Cliente = {
   nombre: string;
   telefono: string;
   direccion: string;
+  ubicacion?: string;
 };
 
 export default function ClientesPage() {
@@ -14,6 +15,7 @@ export default function ClientesPage() {
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [direccion, setDireccion] = useState("");
+  const [ubicacion, setUbicacion] = useState("");
 
   useEffect(() => {
     try {
@@ -75,6 +77,7 @@ export default function ClientesPage() {
       nombre: nombre.trim(),
       telefono: telefonoLimpio,
       direccion: direccion.trim(),
+      ubicacion: ubicacion.trim(),
     };
 
     const lista = [nuevo, ...clientes];
@@ -83,6 +86,7 @@ export default function ClientesPage() {
     setNombre("");
     setTelefono("");
     setDireccion("");
+    setUbicacion("");
   };
 
   const eliminarCliente = (id: string) => {
@@ -124,6 +128,12 @@ export default function ClientesPage() {
           onChange={(e) => setDireccion(e.target.value)}
         />
 
+        <input
+          placeholder="Link de Google Maps o ubicación"
+          value={ubicacion}
+          onChange={(e) => setUbicacion(e.target.value)}
+        />
+
         <button onClick={guardarCliente}>Guardar cliente</button>
       </section>
 
@@ -147,6 +157,7 @@ export default function ClientesPage() {
             <div><strong>{cliente.nombre}</strong></div>
             <div>Teléfono: {cliente.telefono}</div>
             <div>Dirección: {cliente.direccion}</div>
+            <div>Ubicación: {cliente.ubicacion || "No registrada"}</div>
 
             <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
               <button
