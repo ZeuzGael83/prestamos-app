@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 type Cliente = {
   id: string;
   nombre: string;
+  telefono?: string;
 };
 
 type Prestamo = {
@@ -208,102 +209,258 @@ export default function DashboardPage() {
     };
   }, [clientes, prestamos, pagos, hoyTexto]);
 
-  return (
-    <main style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
-      <h1>Dashboard</h1>
+  const clientePorNombre = (nombre: string) =>
+    clientes.find((c) => c.nombre === nombre);
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-        <button onClick={() => (window.location.href = "/clientes")}>Clientes</button>
-        <button onClick={() => (window.location.href = "/prestamos")}>Préstamos</button>
-        <button onClick={() => (window.location.href = "/pagos")}>Pagos</button>
-        <button
-          onClick={() => {
-            localStorage.removeItem("auth");
-            window.location.href = "/login";
+  const abrirWhatsAppMoroso = (nombre: string, saldo: number) => {
+    const cliente = clientePorNombre(nombre);
+    if (!cliente?.telefono) {
+      alert("El cliente no tiene teléfono registrado.");
+      return;
+    }
+
+    const numero = "52" + cliente.telefono.replace(/\D/g, "");
+    const mensaje = `Hola ${cliente.nombre}, tienes un saldo pendiente de $${saldo}. Por favor realiza tu pago hoy.`;
+
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`, "_blank");
+  };
+
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: 16,
+        background: "#eef2ff",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <section
+        style={{
+          background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%)",
+          color: "white",
+          borderRadius: 24,
+          padding: 20,
+          boxShadow: "0 10px 30px rgba(15, 23, 42, 0.25)",
+          marginBottom: 18,
+        }}
+      >
+        <div
+          style={{
+            display: "inline-block",
+            padding: "8px 14px",
+            borderRadius: 999,
+            background: "rgba(255,255,255,0.14)",
+            fontSize: 13,
+            marginBottom: 14,
           }}
         >
-          Cerrar sesión
-        </button>
-      </div>
+          Sistema de administración de préstamos
+        </div>
 
-      <div
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 40,
+            lineHeight: 1.05,
+            fontWeight: 800,
+          }}
+        >
+          Dashboard
+          <br />
+          ejecutivo
+        </h1>
+
+        <p
+          style={{
+            marginTop: 14,
+            marginBottom: 18,
+            color: "rgba(255,255,255,0.88)",
+            fontSize: 18,
+            lineHeight: 1.5,
+          }}
+        >
+          Controla cartera, recuperación, morosidad y cobranza en un solo lugar.
+        </p>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <ActionButton
+            label="Clientes"
+            onClick={() => (window.location.href = "/clientes")}
+            primary
+          />
+          <ActionButton
+            label="Préstamos"
+            onClick={() => (window.location.href = "/prestamos")}
+          />
+          <ActionButton
+            label="Pagos"
+            onClick={() => (window.location.href = "/pagos")}
+          />
+          <ActionButton
+            label="Cerrar sesión"
+            onClick={() => {
+              localStorage.removeItem("auth");
+              window.location.href = "/login";
+            }}
+          />
+        </div>
+      </section>
+
+      <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
           gap: 12,
-          marginBottom: 24,
+          marginBottom: 20,
         }}
       >
-        <Card titulo="Clientes registrados" valor={String(kpis.clientesRegistrados)} />
-        <Card titulo="Préstamos activos" valor={String(kpis.prestamosActivos)} />
-        <Card titulo="Cartera colocada" valor={`$${kpis.carteraColocada.toFixed(2)}`} />
-        <Card titulo="Saldo por cobrar" valor={`$${kpis.saldoPorCobrar.toFixed(2)}`} />
-        <Card titulo="Total recuperado" valor={`$${kpis.totalRecuperado.toFixed(2)}`} />
-        <Card titulo="Morosos" valor={String(kpis.morosos)} />
-        <Card titulo="Al corriente" valor={String(kpis.alCorriente)} />
-        <Card titulo="Pagos registrados" valor={String(kpis.pagosRegistrados)} />
-      </div>
+        <KpiCard titulo="Clientes registrados" valor={String(kpis.clientesRegistrados)} />
+        <KpiCard titulo="Préstamos activos" valor={String(kpis.prestamosActivos)} />
+        <KpiCard titulo="Cartera colocada" valor={`$${kpis.carteraColocada.toFixed(2)}`} />
+        <KpiCard titulo="Saldo por cobrar" valor={`$${kpis.saldoPorCobrar.toFixed(2)}`} />
+        <KpiCard titulo="Total recuperado" valor={`$${kpis.totalRecuperado.toFixed(2)}`} />
+        <KpiCard titulo="Morosos" valor={String(kpis.morosos)} danger={kpis.morosos > 0} />
+        <KpiCard titulo="Al corriente" valor={String(kpis.alCorriente)} success={kpis.alCorriente > 0} />
+        <KpiCard titulo="Pagos registrados" valor={String(kpis.pagosRegistrados)} />
+      </section>
 
-      <h2>Resumen ejecutivo</h2>
+      <section style={{ marginBottom: 14 }}>
+        <h2
+          style={{
+            margin: "0 0 12px 2px",
+            fontSize: 18,
+            color: "#0f172a",
+          }}
+        >
+          Resumen ejecutivo
+        </h2>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: 12,
-          marginBottom: 24,
-        }}
-      >
-        <Box titulo="Cobrado hoy">
-          <strong style={{ fontSize: 28 }}>${kpis.cobradoHoy.toFixed(2)}</strong>
-        </Box>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 12,
+          }}
+        >
+          <PanelCard titulo="Cobrado hoy">
+            <div style={{ fontSize: 36, fontWeight: 800, color: "#0f172a" }}>
+              ${kpis.cobradoHoy.toFixed(2)}
+            </div>
+            <div style={{ color: "#64748b", marginTop: 6 }}>
+              Recuperación registrada en la fecha actual
+            </div>
+          </PanelCard>
 
-        <Box titulo="Último pago registrado">
-          {kpis.ultimoPagoRegistrado ? (
-            <>
-              <div><strong>Monto:</strong> ${kpis.ultimoPagoRegistrado.monto}</div>
-              <div><strong>Fecha:</strong> {kpis.ultimoPagoRegistrado.fecha}</div>
-            </>
-          ) : (
-            <div>No hay pagos registrados.</div>
-          )}
-        </Box>
+          <PanelCard titulo="Último pago registrado">
+            {kpis.ultimoPagoRegistrado ? (
+              <>
+                <InfoRow label="Monto" value={`$${kpis.ultimoPagoRegistrado.monto}`} />
+                <InfoRow label="Fecha" value={kpis.ultimoPagoRegistrado.fecha} />
+              </>
+            ) : (
+              <div style={{ color: "#64748b" }}>No hay pagos registrados.</div>
+            )}
+          </PanelCard>
 
-        <Box titulo="Top 3 morosos">
-          {kpis.topMorosos.length > 0 ? (
-            kpis.topMorosos.map((m, i) => (
-              <div key={m.id} style={{ marginBottom: 8 }}>
-                <div><strong>{i + 1}. {m.clienteNombre}</strong></div>
-                <div>Saldo: ${m.saldo}</div>
-                <div>Días sin pagar: {m.dias}</div>
-              </div>
-            ))
-          ) : (
-            <div>No hay morosos.</div>
-          )}
-        </Box>
-      </div>
+          <PanelCard titulo="Top 3 morosos">
+            {kpis.topMorosos.length > 0 ? (
+              kpis.topMorosos.map((m, i) => (
+                <div
+                  key={m.id}
+                  style={{
+                    borderTop: i === 0 ? "none" : "1px solid #e5e7eb",
+                    paddingTop: i === 0 ? 0 : 10,
+                    marginTop: i === 0 ? 0 : 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: "#111827",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {i + 1}. {m.clienteNombre}
+                  </div>
+                  <div style={{ color: "#475569" }}>Saldo: ${m.saldo}</div>
+                  <div style={{ color: "#475569", marginBottom: 8 }}>
+                    Días sin pagar: {m.dias}
+                  </div>
+
+                  <button
+                    onClick={() => abrirWhatsAppMoroso(m.clienteNombre, m.saldo)}
+                    style={{
+                      background: "#16a34a",
+                      color: "white",
+                      border: "none",
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Cobrar por WhatsApp
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div style={{ color: "#64748b" }}>No hay morosos.</div>
+            )}
+          </PanelCard>
+        </div>
+      </section>
     </main>
   );
 }
 
-function Card({ titulo, valor }: { titulo: string; valor: string }) {
+function KpiCard({
+  titulo,
+  valor,
+  success,
+  danger,
+}: {
+  titulo: string;
+  valor: string;
+  success?: boolean;
+  danger?: boolean;
+}) {
+  const bg = danger ? "#fee2e2" : success ? "#dcfce7" : "#ffffff";
+  const border = danger ? "#fecaca" : success ? "#bbf7d0" : "#dbe4f0";
+  const color = danger ? "#991b1b" : success ? "#166534" : "#0f172a";
+
   return (
     <div
       style={{
-        border: "1px solid #ccc",
-        padding: 14,
-        borderRadius: 10,
-        background: "white",
+        background: bg,
+        border: `1px solid ${border}`,
+        borderRadius: 22,
+        padding: 16,
+        boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
       }}
     >
-      <div style={{ fontSize: 13, color: "#555", marginBottom: 8 }}>{titulo}</div>
-      <div style={{ fontSize: 24, fontWeight: 700 }}>{valor}</div>
+      <div
+        style={{
+          fontSize: 13,
+          color: "#64748b",
+          marginBottom: 10,
+        }}
+      >
+        {titulo}
+      </div>
+      <div
+        style={{
+          fontSize: 34,
+          fontWeight: 800,
+          color,
+          lineHeight: 1.05,
+        }}
+      >
+        {valor}
+      </div>
     </div>
   );
 }
 
-function Box({
+function PanelCard({
   titulo,
   children,
 }: {
@@ -313,14 +470,58 @@ function Box({
   return (
     <div
       style={{
-        border: "1px solid #ccc",
-        padding: 14,
-        borderRadius: 10,
         background: "white",
+        border: "1px solid #dbe4f0",
+        borderRadius: 22,
+        padding: 16,
+        boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)",
       }}
     >
-      <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{titulo}</div>
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 800,
+          color: "#0f172a",
+          marginBottom: 12,
+        }}
+      >
+        {titulo}
+      </div>
       {children}
     </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ marginBottom: 8, color: "#334155" }}>
+      <strong>{label}:</strong> {value}
+    </div>
+  );
+}
+
+function ActionButton({
+  label,
+  onClick,
+  primary,
+}: {
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: primary ? "#ffffff" : "rgba(255,255,255,0.12)",
+        color: primary ? "#0f172a" : "#ffffff",
+        border: primary ? "none" : "1px solid rgba(255,255,255,0.18)",
+        padding: "12px 16px",
+        borderRadius: 14,
+        fontWeight: 700,
+      }}
+    >
+      {label}
+    </button>
   );
 }
